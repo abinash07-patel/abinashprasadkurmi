@@ -1,0 +1,1540 @@
+<!DOCTYPE html>
+<!-- Full-bleed editorial hero driven by a filmstrip.
+     Static port of hero-carousel (same style/design/animations, no React build).
+     Photos load from the hero folder (whatever images exist there, shuffled);
+     each with its own caption; caption fact-list sits at the bottom. -->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Abinash Kurmi - Portfolio</title>
+<meta name="description" content="Abhinash Prasad Kurmi — moments in frames. B.Tech CSE, KIIT 2022–2026.">
+<link rel="icon" type="image/svg+xml" href="images/favicon.svg">
+<link rel="preload" as="image" href="https://res.cloudinary.com/hdul8yua/image/upload/f_auto,q_auto:best,w_2048/v1790754895/20260502_084659_3.jpg" fetchpriority="high">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root { --ease-out-expo: cubic-bezier(0.22, 1, 0.36, 1); }
+  html, body { background: #000; }
+  body {
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, Helvetica, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+
+  /* ===== Stage (measured by JS, ratios of the stage box) ===== */
+  .stage {
+    --fullH: 200px; --halfH: 100px; --cardW: 150px; --gap: 8px;
+    --pad: 24px; --label: 10px; --titleSize: 40px; --railW: 20%;
+    position: relative; height: 100svh; min-height: 600px; width: 100%;
+    overflow: hidden; background: #000; color: #fff; user-select: none;
+    outline: none;
+  }
+  .stage:focus-visible { box-shadow: inset 0 0 0 1px rgba(255,255,255,.4); }
+
+  /* ===== Background: focused photo, shown original (no colour grading) ===== */
+  .bg { position: absolute; inset: 0; }
+  .bg img {
+    position: absolute; inset: 0; height: 100%; width: 100%; object-fit: cover; object-position: 50% 25%;
+    image-orientation: from-image;
+    transform: scale(1.42); animation: bg-settle 6s linear forwards;
+  }
+  @keyframes bg-settle { from { transform: scale(1.42); } to { transform: scale(1.28); } }
+  .bg-fade { transition: opacity 0.7s ease; }
+  .wash { position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(0,0,0,.4), transparent 40%, transparent 60%, rgba(0,0,0,.45)); }
+  .grain {
+    position: absolute; inset: 0; pointer-events: none; opacity: 0.22; mix-blend-mode: overlay;
+    background-size: 180px 180px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  /* ===== Top bar ===== */
+  .topbar {
+    position: fixed; inset: 0 0 auto; z-index: 80; min-height: 80px;
+    display: flex; align-items: center; justify-content: space-between; gap: 24px;
+    padding: 0 clamp(20px, 4vw, 64px); color: #fff; background: transparent;
+  }
+  .brand { color: #fff; font-family: "Bodoni MT", Didot, "Times New Roman", serif; font-size: 30px; font-weight: 700; letter-spacing: .015em; text-decoration: none; white-space: nowrap; text-shadow: 0 1px 8px rgba(0,0,0,.24); }
+  .top-nav { display: flex; align-items: center; justify-content: flex-end; gap: clamp(18px, 2.6vw, 38px); }
+  .top-nav a { color: #fff; font-size: 20px; font-weight: 650; text-decoration: none; opacity: .94; text-shadow: 0 1px 8px rgba(0,0,0,.24); transition: opacity .18s, color .18s; }
+  .top-nav a:hover, .top-nav a[aria-current="page"] { opacity: 1; }
+  .top-nav a[aria-current="page"] { text-decoration: underline; text-underline-offset: 6px; }
+  .topbar.topbar-dark .brand, .topbar.topbar-dark .top-nav a { color: #191919; text-shadow: none; }
+  .topbar.topbar-dark .top-nav a[aria-current="page"] { color: #191919; }
+  .mobile-menu-toggle { display: none; place-items: center; width: 46px; height: 46px; flex: 0 0 46px; border: 1px solid currentColor; border-radius: 50%; background: transparent; color: #fff; cursor: pointer; }
+  .topbar.topbar-dark .mobile-menu-toggle { color: #191919; }
+  .mobile-menu-toggle:focus-visible, .mobile-menu-close:focus-visible, .mobile-nav-links a:focus-visible { outline: 2px solid #dc7554; outline-offset: 4px; }
+  .mobile-menu-icon { position: relative; display: block; width: 18px; height: 14px; }
+  .mobile-menu-icon::before, .mobile-menu-icon::after, .mobile-menu-icon span { position: absolute; left: 0; width: 100%; height: 1.5px; background: currentColor; content: ""; }
+  .mobile-menu-icon::before { top: 1px; }
+  .mobile-menu-icon span { top: 6px; }
+  .mobile-menu-icon::after { top: 11px; }
+  .mobile-nav-backdrop[hidden] { display: none; }
+  .mobile-nav-backdrop { position: fixed; inset: 0; z-index: 120; display: flex; justify-content: flex-end; background: rgba(11,16,12,.58); opacity: 0; visibility: hidden; pointer-events: none; transition: opacity 220ms ease, visibility 220ms ease; }
+  .mobile-nav-backdrop.is-open { opacity: 1; visibility: visible; pointer-events: auto; }
+  .mobile-nav-dialog { position: relative; display: flex; flex-direction: column; width: 60vw; max-width: 360px; height: 100%; padding: 76px 25px 30px; background: #f2f0e9; color: #24372c; transform: translateX(100%); transition: transform 320ms cubic-bezier(.22,1,.36,1); }
+  .mobile-nav-backdrop.is-open .mobile-nav-dialog { transform: translateX(0); }
+  .mobile-nav-heading { color: #718072; font: 10px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: .16em; text-transform: uppercase; }
+  .mobile-menu-close { position: absolute; top: 19px; right: 20px; display: grid; place-items: center; width: 42px; height: 42px; border: 1px solid #c9cec3; border-radius: 50%; background: transparent; color: #24372c; font: 24px/1 Georgia, "Times New Roman", serif; cursor: pointer; }
+  .mobile-nav-links { display: grid; margin-top: 25px; }
+  .mobile-nav-links a { padding: 15px 0; border-bottom: 1px solid #d5d7ce; color: #24372c; font: 400 22px/1.2 Georgia, "Times New Roman", serif; text-decoration: none; transition: color 180ms ease, padding-left 180ms ease; }
+  .mobile-nav-links a:hover, .mobile-nav-links a[aria-current="page"] { padding-left: 7px; color: #b8513f; }
+  body.mobile-nav-open { overflow: hidden; }
+
+  /* ===== Headline block (above the strip's top edge) ===== */
+  .headline {
+    position: absolute; inset-inline: 0; top: 0; z-index: 20;
+    height: 69%; display: flex; flex-direction: column; justify-content: flex-end;
+  }
+  .headline-row { display: flex; flex-wrap: wrap; align-items: flex-end; width: 100%; }
+  .headline h2 {
+    font-weight: 600; line-height: 0.88; letter-spacing: -0.03em;
+    font-size: var(--titleSize);
+  }
+  .headline h2 .line { display: block; overflow: hidden; }
+  .headline h2 .line > span { display: block; }
+  .headline h2.swap .line > span { animation: wipe-up 0.62s var(--ease-out-expo) both; }
+  .headline h2.swap .line:nth-child(2) > span { animation-delay: 0.07s; }
+  @keyframes wipe-up { from { transform: translateY(110%); } to { transform: translateY(0); } }
+  .credit {
+    font-size: var(--label); text-transform: uppercase; letter-spacing: 0.14em;
+    opacity: 0; animation: fade-in 0.5s ease 0.1s forwards;
+  }
+  @keyframes fade-in { to { opacity: 0.8; } }
+
+  /* ===== Strip ===== */
+  .strip { position: absolute; inset-inline: 0; top: 69%; height: var(--fullH); z-index: 20; }
+  .track { display: flex; align-items: flex-start; gap: var(--gap); will-change: transform; touch-action: pan-y; cursor: grab; }
+  .track.dragging { cursor: grabbing; }
+  .card {
+    position: relative; flex-shrink: 0; overflow: hidden;
+    width: var(--cardW); border: none; padding: 0; background: rgba(255,255,255,.05);
+    cursor: pointer; transition: height 0.5s var(--ease-out-expo);
+  }
+  .card img { height: 100%; width: 100%; object-fit: cover; object-position: 50% 26%; pointer-events: none; }
+  .card .dim { position: absolute; inset: 0; background: #000; transition: opacity 0.5s ease; pointer-events: none; }
+
+  /* ===== Bottom bar: caption fact-list + position rail ===== */
+  .bottombar {
+    position: absolute; inset-inline: 0; bottom: 0; z-index: 30;
+    display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem;
+  }
+  .rail { width: var(--railW); }
+  .rail-nums { display: flex; justify-content: space-between; font-size: var(--label); opacity: 0.8; font-variant-numeric: tabular-nums; }
+  .rail-track { position: relative; margin-top: 8px; height: 1px; width: 100%; background: rgba(255,255,255,.25); }
+  .rail-fill { position: absolute; top: 0; bottom: 0; background: #fff; transition: left 0.5s var(--ease-out-expo); }
+  .facts { display: flex; align-items: flex-end; text-align: right; }
+  .facts span {
+    font-size: var(--label); text-transform: uppercase; letter-spacing: 0.14em;
+    white-space: nowrap; opacity: 0;
+  }
+  .facts.swap span { animation: fact-in 0.45s ease forwards; }
+  @keyframes fact-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 0.8; transform: none; } }
+
+  /* ===== Menu overlay ===== */
+  .menu-overlay {
+    position: fixed; inset: 0; z-index: 100; display: none;
+    flex-direction: column; align-items: flex-start; justify-content: center; gap: .4rem;
+    padding: 10vw; background: rgba(14, 18, 15, .97); backdrop-filter: blur(12px);
+  }
+  .menu-overlay.open { display: flex; }
+  .menu-overlay a { color: #f1efe7; text-decoration: none; font: 400 clamp(36px, 7vw, 82px)/1.14 Georgia, "Times New Roman", serif; opacity: .8; transition: opacity .2s, transform .2s; }
+  .menu-overlay a:hover { opacity: 1; transform: translateX(8px); }
+  .menu-close { position: absolute; top: 24px; right: clamp(20px, 4vw, 64px); background: none; border: none; color: #fff; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; cursor: pointer; opacity: .8; }
+
+  /* ===== Dedicated profile pages ===== */
+  .page-view[hidden] { display: none !important; }
+  .content-page { min-height: 100svh; padding: 150px clamp(24px, 9vw, 140px) 90px; background: #f3f1ea; color: #222720; }
+  .content-inner { width: min(1120px, 100%); margin: 0 auto; }
+  .page-eyebrow { color: #687666; font: 11px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: .16em; text-transform: uppercase; }
+  .page-title { max-width: none; margin-top: 18px; white-space: nowrap; font: 400 clamp(14px, 3.7vw, 54px)/1.08 Georgia, "Times New Roman", serif; }
+  .page-lede { max-width: 66ch; margin-top: 28px; color: #596057; font: 19px/1.75 Georgia, "Times New Roman", serif; }
+  .about-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 56px; margin-top: 70px; }
+  .about-story {
+    margin-top: 36px; padding: clamp(18px, 3vw, 34px); background: #fff;
+    border: 1px solid #e0e5ec; border-radius: 8px; box-shadow: 0 12px 35px rgba(26, 45, 66, .07);
+  }
+  .about-story-row {
+    display: grid; grid-template-columns: minmax(150px, .36fr) minmax(0, .64fr);
+    align-items: center; gap: clamp(22px, 4vw, 58px); min-height: 280px;
+    padding: 26px 0; border-bottom: 1px solid #d9e1ea;
+  }
+  .about-story-row:last-child { border-bottom: 0; }
+  .about-story-row.is-reversed .about-story-image { order: 2; }
+  .about-story-row.is-reversed .about-story-copy { order: 1; }
+  .about-story-image { width: 100%; aspect-ratio: .82; max-height: 310px; object-fit: cover; object-position: center; border-radius: 5px; box-shadow: 7px 8px 0 #e6edf4, 0 8px 18px rgba(17, 34, 51, .12); }
+  .about-story-copy h2 { color: #17456d; font: 600 clamp(18px, 2vw, 25px)/1.2 Georgia, "Times New Roman", serif; }
+  .about-story-copy h2::after { content: ""; display: block; width: 30px; height: 2px; margin-top: 10px; background: #e57b55; }
+  .about-story-copy p { margin-top: 13px; color: #586675; font-size: clamp(13px, 1.1vw, 15px); line-height: 1.75; }
+  .about-story-cta { display: inline-flex; margin-top: 18px; padding: 10px 16px; border-radius: 4px; background: #e95e50; color: #fff; font-size: 13px; font-weight: 600; text-decoration: none; }
+  .about-story-cta:hover { background: #cb493e; }
+  .page-subtitle { margin-bottom: 16px; font: 600 12px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: .12em; text-transform: uppercase; }
+  .page-copy { color: #596057; font-size: 16px; line-height: 1.75; }
+  .skill-list { display: flex; flex-wrap: wrap; gap: 10px; list-style: none; padding: 0; }
+  .skill-list li { border: 1px solid #c8ccc1; padding: 10px 13px; color: #38443a; font-size: 13px; }
+  .education-page { padding: 0; background: #f2f0e9; }
+  .education-hero { min-height: 470px; display: flex; align-items: center; padding: 145px clamp(24px, 9vw, 140px) 72px; background: #23382d; color: #f3f0e8; }
+  .education-hero-inner { display: grid; grid-template-columns: minmax(0, 1fr) minmax(230px, .42fr); align-items: end; gap: 60px; width: min(1120px, 100%); margin: 0 auto; }
+  .education-eyebrow { color: #bac8b8; font: 11px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: .16em; text-transform: uppercase; }
+  .education-hero h1 { max-width: 760px; margin-top: 24px; font: 400 68px/.99 Georgia, "Times New Roman", serif; }
+  .education-hero-copy > p:last-child { max-width: 52ch; margin-top: 24px; color: rgba(243,240,232,.76); font: 17px/1.7 Georgia, "Times New Roman", serif; }
+  .education-current { display: grid; justify-items: start; gap: 18px; padding: 0 0 5px 28px; border-left: 1px solid rgba(243,240,232,.3); }
+  .education-current img { display: block; width: 114px; height: 96px; padding: 8px; object-fit: contain; background: #fff; }
+  .education-current span { color: #bac8b8; font: 10px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: .12em; text-transform: uppercase; }
+  .education-current strong { font: 400 21px/1.3 Georgia, "Times New Roman", serif; }
+  .education-records { width: min(1120px, calc(100% - 48px)); margin: 0 auto; padding: 72px 0 100px; }
+  .education-records-heading { display: flex; align-items: end; justify-content: space-between; gap: 24px; padding-bottom: 22px; border-bottom: 1px solid #c9cec3; }
+  .education-records-heading h2 { margin-top: 10px; color: #26352c; font: 400 38px/1.1 Georgia, "Times New Roman", serif; }
+  .education-records-heading > span { color: #718072; font: 10px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: .1em; }
+  .education-list { display: grid; }
+  .education-item { display: grid; grid-template-columns: 128px 90px minmax(0, 1fr) auto; align-items: center; gap: 28px; min-height: 160px; padding: 24px 0; border-bottom: 1px solid #c9cec3; }
+  .education-year { color: #718072; font: 10px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: .05em; text-transform: uppercase; }
+  .education-mark { display: grid; place-items: center; width: 82px; height: 82px; overflow: hidden; background: #fff; }
+  .education-mark img { display: block; width: 100%; height: 100%; padding: 7px; object-fit: contain; }
+  .education-mark--monogram { background: #e4e5dc; color: #344a3b; font: 400 26px/1 Georgia, "Times New Roman", serif; }
+  .education-item h3 { color: #27352c; font: 400 26px/1.18 Georgia, "Times New Roman", serif; }
+  .education-item p { margin-top: 8px; color: #60685f; font-size: 13px; line-height: 1.6; }
+  .education-score { color: #485c4a; font: 11px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; white-space: nowrap; }
+  .projects-page { padding: 0 0 90px; background: #f3f1ea; }
+  .projects-hero { display: flex; min-height: 390px; align-items: center; padding: 140px clamp(24px, 9vw, 140px) 66px; background: #23382d; color: #f3f0e8; }
+  .projects-hero-inner { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 50px; width: min(1120px, 100%); margin: 0 auto; }
+  .projects-hero .page-eyebrow { color: #bac8b8; }
+  .projects-hero h1 { margin-top: 20px; font: 400 66px/1 Georgia, "Times New Roman", serif; }
+  .projects-hero-copy > p:last-child { max-width: 42ch; margin-top: 19px; color: rgba(243,240,232,.76); font: 16px/1.65 Georgia, "Times New Roman", serif; }
+  .projects-hero-index { display: grid; gap: 8px; min-width: 150px; padding: 0 0 5px 23px; border-left: 1px solid rgba(243,240,232,.3); }
+  .projects-hero-index strong { font: 400 56px/.9 Georgia, "Times New Roman", serif; }
+  .projects-hero-index span { color: #bac8b8; font: 10px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: .13em; text-transform: uppercase; }
+  .projects-content { padding-top: 58px; }
+  .project-list { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 36px; }
+  .experience-list { display: grid; gap: 0; margin-top: 42px; border-top: 1px solid #ccd3dc; }
+  .experience-item { display: grid; grid-template-columns: minmax(150px, .34fr) minmax(0, 1fr); gap: clamp(24px, 5vw, 68px); align-items: center; padding: 30px 0; border-bottom: 1px solid #ccd3dc; }
+  .experience-logo-wrap { display: grid; place-items: center; min-height: 145px; padding: 20px; background: #fff; border: 1px solid #e0e5ec; border-radius: 6px; }
+  .experience-logo { display: block; width: min(100%, 190px); max-height: 92px; object-fit: contain; }
+  .experience-label { color: #687666; font: 10px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: .12em; text-transform: uppercase; }
+  .experience-item h2 { margin-top: 8px; color: #17456d; font: 400 clamp(27px, 3.2vw, 40px)/1.1 Georgia, "Times New Roman", serif; }
+  .experience-role { margin-top: 8px; color: #293c4c; font-size: 15px; font-weight: 650; }
+  .experience-company { margin-top: 5px; color: #687666; font-size: 13px; }
+  .experience-description { max-width: 72ch; margin-top: 14px; color: #596675; font-size: 14px; line-height: 1.75; }
+  .experience-tags { margin-top: 12px; color: #687666; font: 10px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: .06em; }
+  .experience-link { display: inline-flex; margin-top: 14px; color: #b94c3f; font-size: 13px; font-weight: 650; text-decoration: none; }
+  .experience-link:hover { text-decoration: underline; text-underline-offset: 4px; }
+  .projects-heading { margin-top: 56px; padding-top: 28px; border-top: 1px solid #ccd3dc; }
+  .projects-heading h2 { color: #26352c; font: 400 clamp(30px, 4vw, 46px)/1.1 Georgia, "Times New Roman", serif; }
+  .projects-heading p { margin-top: 10px; color: #596057; font-size: 15px; line-height: 1.7; }
+  .project-item { position: relative; display: flex; min-height: 310px; flex-direction: column; align-items: flex-start; overflow: hidden; padding: clamp(24px, 4vw, 42px); border: 0; border-top: 3px solid #d66e51; background: #e5e7de; transition: transform 240ms ease, box-shadow 240ms ease; }
+  .project-item:hover { transform: translateY(-5px); box-shadow: 0 18px 36px rgba(33,48,38,.12); }
+  .project-item:nth-child(2) { background: #2c4034; color: #f3f0e8; }
+  .project-number { color: #647864; font: 11px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: .1em; }
+  .project-item:nth-child(2) .project-number, .project-item:nth-child(2) .project-tags { color: #becbbb; }
+  .project-item h2 { max-width: 14ch; margin-top: 30px; font: 400 34px/1.08 Georgia, "Times New Roman", serif; }
+  .project-item p { margin-top: 16px; color: #596057; font-size: 14px; line-height: 1.75; }
+  .project-item:nth-child(2) p { color: rgba(243,240,232,.76); }
+  .project-item .project-tags { margin-top: auto; padding-top: 22px; }
+  .projects-page.motion-ready .project-reveal { opacity: 0; transform: translateY(20px); transition: opacity 620ms ease, transform 620ms cubic-bezier(.22,1,.36,1); }
+  .projects-page.motion-ready .project-reveal.is-visible { opacity: 1; transform: translateY(0); }
+  .project-item.project-reveal:nth-child(2) { transition-delay: 90ms; }
+  .project-tags { margin-top: 20px; color: #687666; font: 10px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: .08em; text-transform: uppercase; }
+  .contact-page {
+    position: relative; display: flex; min-height: 100svh; align-items: center; overflow: hidden; isolation: isolate;
+    padding: 130px clamp(20px, 7vw, 100px) 72px; background: #1e2922; color: #f4f1e9;
+  }
+  .contact-page::before {
+    position: absolute; z-index: -2; inset: 0; content: "";
+    background: url("https://res.cloudinary.com/hdul8yua/image/upload/f_auto,q_auto:good,w_1800,c_fill/v1790754935/IMG_20250122_145745538.jpg") center 42% / cover;
+    transform: scale(1.04); animation: contact-background-settle 18s ease-out both;
+  }
+  .contact-page::after { position: absolute; z-index: -1; inset: 0; content: ""; background: linear-gradient(100deg, rgba(12,20,15,.76), rgba(12,20,15,.46) 52%, rgba(12,20,15,.62)); }
+  @keyframes contact-background-settle { to { transform: scale(1); } }
+  .contact-bubbles { position: absolute; z-index: 0; inset: 0; overflow: hidden; pointer-events: none; }
+  .contact-bubble {
+    position: absolute; bottom: -30px; border: 1px solid rgba(255,255,255,.28); border-radius: 50%;
+    background: rgba(255,255,255,.09); opacity: 0; animation: contact-bubble-rise var(--bubble-duration) ease-in-out var(--bubble-delay) infinite;
+  }
+  @keyframes contact-bubble-rise {
+    0% { opacity: 0; transform: translate3d(0, 0, 0) scale(.65); }
+    18% { opacity: .7; }
+    82% { opacity: .35; }
+    100% { opacity: 0; transform: translate3d(var(--bubble-drift), -110vh, 0) scale(1.15); }
+  }
+  .contact-inner { position: relative; z-index: 1; display: grid; grid-template-columns: minmax(0, .9fr) minmax(380px, 1.1fr); align-items: center; gap: clamp(38px, 7vw, 96px); width: min(1120px, 100%); margin: 0 auto; }
+  .contact-copy .page-eyebrow { color: #d4ddcf; }
+  .contact-title { max-width: 9ch; margin-top: 20px; font: 400 clamp(42px, 6.2vw, 82px)/.98 Georgia, "Times New Roman", serif; }
+  .contact-copy .page-lede { max-width: 40ch; margin-top: 24px; color: rgba(244,241,233,.8); font-size: 17px; }
+  .contact-email { display: inline-flex; margin-top: 27px; color: #f4f1e9; font: 600 13px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; text-decoration: underline; text-underline-offset: 5px; }
+  .contact-form { padding: clamp(24px, 4vw, 42px); border: 1px solid rgba(255,255,255,.6); border-radius: 6px; background: rgba(248,247,242,.96); color: #262c26; box-shadow: 0 22px 70px rgba(0,0,0,.22); backdrop-filter: blur(8px); }
+  .contact-form h2 { font: 400 clamp(27px, 3vw, 38px)/1.1 Georgia, "Times New Roman", serif; }
+  .contact-form-intro { margin-top: 9px; color: #687066; font: 14px/1.6 Georgia, "Times New Roman", serif; }
+  .contact-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 17px; margin-top: 25px; }
+  .contact-field { display: grid; gap: 7px; min-width: 0; }
+  .contact-field--wide { grid-column: 1 / -1; }
+  .contact-field label, .contact-projects legend { color: #343c34; font: 600 11px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: .03em; }
+  .contact-field input, .contact-field textarea {
+    width: 100%; border: 1px solid #c9cec5; border-radius: 3px; padding: 11px 12px; background: #fff;
+    color: #262c26; font: 14px/1.5 ui-sans-serif, system-ui, sans-serif; transition: border-color .18s, box-shadow .18s;
+  }
+  .contact-field textarea { min-height: 100px; resize: vertical; }
+  .contact-field input:focus, .contact-field textarea:focus { outline: none; border-color: #59725f; box-shadow: 0 0 0 3px rgba(89,114,95,.15); }
+  .contact-projects { min-width: 0; margin-top: 21px; border: 0; padding: 0; }
+  .contact-projects legend { margin-bottom: 11px; }
+  .contact-options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 12px; }
+  .contact-option { display: flex; align-items: flex-start; gap: 8px; color: #51594f; font: 12px/1.4 ui-sans-serif, system-ui, sans-serif; cursor: pointer; }
+  .contact-option input { width: 15px; height: 15px; flex: 0 0 15px; margin: 1px 0 0; accent-color: #435b49; }
+  .contact-submit { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; min-height: 48px; margin-top: 25px; border: 0; border-radius: 3px; background: #28392d; color: #fff; font: 600 13px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; cursor: pointer; transition: background .18s, transform .18s; }
+  .contact-submit:hover { transform: translateY(-1px); background: #405b48; }
+  .contact-submit:focus-visible { outline: 2px solid #59725f; outline-offset: 3px; }
+  .contact-submit span { font-size: 17px; transition: transform .18s; }
+  .contact-submit:hover span { transform: translate(3px, -2px); }
+  .contact-status { min-height: 1.4em; margin-top: 10px; color: #586456; font: 11px/1.4 ui-sans-serif, system-ui, sans-serif; }
+
+  /* ===== Scroll-spread photo section ===== */
+  .spread-section {
+    position: relative; height: 330svh; background: #e8eae3; color: #19231f;
+    font-family: Georgia, "Times New Roman", serif;
+  }
+  .spread-sticky { position: sticky; top: 0; height: 100svh; min-height: 540px; overflow: hidden; }
+  .spread-copy {
+    position: absolute; z-index: 20; inset: 7% 20px auto; text-align: center;
+    opacity: 0; transform: translateY(18px); will-change: opacity, transform; pointer-events: none;
+  }
+  .spread-copy p {
+    margin-bottom: 12px; font: 10px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    letter-spacing: 0.16em; text-transform: uppercase; opacity: 0.65;
+  }
+  .spread-copy h2 { font-size: clamp(32px, 5vw, 68px); font-weight: 400; line-height: 0.98; }
+  .spread-copy h2 span { color: #66816c; font-style: italic; }
+  .spread-intro {
+    position: absolute; z-index: 5; top: 50%; left: 50%; width: min(52vw, 620px);
+    text-align: center; color: #19231f; opacity: 0;
+    transform: translate(-50%, calc(-50% + 18px)) scale(0.85);
+    will-change: opacity, transform;
+    pointer-events: none;
+  }
+  .spread-intro h3 {
+    white-space: nowrap;
+    font: 400 clamp(25px, 6vw, 82px)/0.98 Georgia, "Times New Roman", serif;
+  }
+  .spread-intro p {
+    margin: 16px auto 0; max-width: 40ch;
+    font: 16px/1.6 Georgia, "Times New Roman", serif;
+    letter-spacing: 0; opacity: 0.76;
+  }
+  .spread-cards { position: absolute; inset: 0; }
+  .spread-card {
+    position: absolute; top: 50%; left: 50%; width: clamp(130px, 14.5vw, 230px);
+    height: clamp(180px, 24vh, 270px); overflow: hidden; background: #d4d8ce;
+    box-shadow: 0 18px 50px rgba(24, 33, 28, 0.2); transform-origin: center;
+    will-change: transform; backface-visibility: hidden;
+  }
+  .spread-card--side { width: clamp(110px, 12vw, 190px); height: clamp(150px, 20vh, 230px); }
+  .spread-card--bottom { width: clamp(100px, 11vw, 175px); height: clamp(135px, 18vh, 205px); }
+  .spread-card img { display: block; width: 100%; height: 100%; object-fit: cover; }
+  .spread-count {
+    position: absolute; right: 24px; bottom: 22px; z-index: 20;
+    font: 10px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    letter-spacing: 0.14em; color: rgba(25, 35, 31, 0.62);
+  }
+  .spread-progress { position: absolute; bottom: 0; left: 0; width: 100%; height: 2px; background: rgba(25,35,31,.12); }
+  .spread-progress span { display: block; height: 100%; width: 0; background: #59725f; transform-origin: left; }
+
+  /* ===== Feedback chapter ===== */
+  .feedback-section {
+    position: relative; height: 240svh; background: #f4f1e9; color: #20251f;
+    font-family: Georgia, "Times New Roman", serif;
+  }
+  .feedback-sticky {
+    position: sticky; top: 0; display: flex; min-height: 560px; height: 100svh;
+    align-items: center; justify-content: center; overflow: hidden; padding: 7vw;
+  }
+  .feedback-layout {
+    display: grid; grid-template-columns: minmax(300px, 1fr) minmax(300px, 0.9fr);
+    align-items: center; gap: clamp(36px, 8vw, 120px); width: min(1100px, 100%);
+  }
+  .feedback-heading { margin-bottom: 34px; }
+  .feedback-heading p, .feedback-eyebrow {
+    font: 10px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    letter-spacing: 0.16em; text-transform: uppercase; color: #667365;
+  }
+  .feedback-heading h2 { margin-top: 12px; white-space: nowrap; font-size: clamp(16px, 2.35vw, 34px); font-weight: 400; line-height: 1.08; }
+  .feedback-portraits { position: relative; height: clamp(300px, 50vh, 480px); perspective: 1000px; }
+  .feedback-portrait {
+    position: absolute; top: 50%; left: 50%; width: clamp(190px, 24vw, 300px);
+    height: clamp(250px, 38vh, 390px); overflow: hidden; background: #d8d6cc;
+    box-shadow: 0 24px 60px rgba(32, 37, 31, 0.16);
+    transition: transform 700ms cubic-bezier(.2,.8,.2,1), opacity 500ms ease;
+  }
+  .feedback-portrait img { display: block; width: 100%; height: 100%; object-fit: cover; }
+  .feedback-portrait[data-position="active"] { z-index: 3; opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  .feedback-portrait[data-position="previous"] { z-index: 2; opacity: .68; transform: translate(calc(-50% - 82%), -48%) rotate(-7deg) scale(.78); }
+  .feedback-portrait[data-position="next"] { z-index: 2; opacity: .68; transform: translate(calc(-50% + 82%), -48%) rotate(7deg) scale(.78); }
+  .feedback-portrait[data-position="hidden"] { z-index: 1; opacity: 0; transform: translate(-50%, -40%) scale(.72); pointer-events: none; }
+  .feedback-copy { min-height: 240px; }
+  .feedback-copy h3 { margin-top: 14px; font-size: clamp(30px, 3.5vw, 46px); line-height: 1.06; font-weight: 400; }
+  .feedback-role { margin-top: 14px; color: #667365; font: 12px/1.7 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: .04em; }
+  .feedback-note { max-width: 38ch; margin-top: 26px; color: #5e625a; font-size: 17px; line-height: 1.65; }
+  .feedback-controls { display: flex; align-items: center; gap: 18px; margin-top: 34px; }
+  .feedback-controls button {
+    display: grid; place-items: center; width: 44px; height: 44px; border: 1px solid #b9beb4;
+    border-radius: 50%; background: transparent; color: #20251f; font: 20px/1 Georgia, "Times New Roman", serif;
+    cursor: pointer; transition: color 180ms ease, background 180ms ease, border-color 180ms ease;
+  }
+  .feedback-controls button:hover { color: #f4f1e9; background: #334339; border-color: #334339; }
+  .feedback-controls button:focus-visible { outline: 2px solid #59725f; outline-offset: 3px; }
+  .feedback-position { min-width: 58px; color: #667365; font: 10px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: .12em; }
+  .feedback-progress { position: absolute; inset: auto 0 0; height: 2px; background: rgba(32,37,31,.12); }
+  .feedback-progress span { display: block; width: 0; height: 100%; background: #59725f; transition: width 240ms ease; }
+
+  /* ===== Portfolio footer ===== */
+  .site-footer { background: #202720; color: #f1efe7; padding: 42px max(24px, calc((100vw - 1180px) / 2)) 22px; }
+  .footer-collab {
+    display: grid; grid-template-columns: 1fr 1fr; align-items: stretch; gap: clamp(30px, 5vw, 72px);
+    min-height: 440px; margin-bottom: 62px; padding: clamp(32px, 5vw, 64px);
+    border: 1px solid rgba(32,39,32,.12); border-radius: 12px; background: #eeeceb; color: #241e24;
+  }
+  .footer-collab-copy { display: flex; flex-direction: column; justify-content: center; min-height: 100%; }
+  .footer-collab-copy h2 { max-width: none; white-space: nowrap; font: 600 clamp(12px, 2.35vw, 34px)/1.15 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .footer-collab-copy > p { max-width: 48ch; margin-top: 22px; color: #625b62; font: 20px/1.75 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .footer-socials { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 26px; }
+  .footer-social {
+    display: grid; place-items: center; width: 56px; height: 56px; border: 1px solid rgba(36,30,36,.16);
+    border-radius: 50%; color: #332a32; transition: color 180ms ease, background 180ms ease, transform 180ms ease;
+  }
+  .footer-social svg { width: 25px; height: 25px; fill: currentColor; }
+  .footer-social:hover { transform: translateY(-2px); background: #28352b; color: #f4f1e9; }
+  .footer-social[aria-label="Email Abinash"] { color: #6b174c; }
+  .footer-social[aria-label="Message Abinash on WhatsApp"] { color: #18a957; }
+  .footer-social[aria-label="Abinash on LinkedIn"] { color: #0a66c2; }
+  .footer-social[aria-label="Abinash on Instagram"] { color: #d63372; }
+  .footer-social[aria-label="Email Abinash"]:hover { background: #6b174c; color: #fff; }
+  .footer-social[aria-label="Message Abinash on WhatsApp"]:hover { background: #18a957; color: #fff; }
+  .footer-social[aria-label="Abinash on LinkedIn"]:hover { background: #0a66c2; color: #fff; }
+  .footer-social[aria-label="Abinash on Instagram"]:hover { background: #d63372; color: #fff; }
+  .footer-social:focus-visible, .footer-work:focus-visible { outline: 2px solid #59725f; outline-offset: 3px; }
+  .footer-work {
+    display: inline-flex; align-items: center; min-height: 42px; padding: 0 17px; border: 1px solid rgba(36,30,36,.2);
+    border-radius: 22px; color: #241e24; font: 12px/1 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    text-decoration: none; transition: color 180ms ease, background 180ms ease;
+  }
+  .footer-work:hover { background: #28352b; color: #f4f1e9; }
+  .footer-collab-image { position: relative; height: 100%; min-height: 360px; overflow: hidden; background: #d5d0d5; }
+  .footer-collab-image img { width: 100%; height: 100%; display: block; object-fit: contain; object-position: center; }
+  .footer-main { display: grid; grid-template-columns: minmax(260px, 1.5fr) repeat(2, minmax(140px, .7fr)); gap: clamp(32px, 7vw, 100px); padding-bottom: 52px; }
+  .footer-brand { display: inline-block; color: inherit; font: 500 14px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: .13em; text-decoration: none; }
+  .footer-intro { max-width: 40ch; margin-top: 18px; color: rgba(241,239,231,.67); font: 16px/1.65 Georgia, "Times New Roman", serif; }
+  .footer-contact { display: inline-flex; align-items: center; gap: 12px; margin-top: 25px; color: #d8e0d1; font: 11px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: .08em; text-decoration: none; text-transform: uppercase; }
+  .footer-contact::after { content: "↗"; font-size: 16px; transition: transform 180ms ease; }
+  .footer-contact:hover::after { transform: translate(3px, -3px); }
+  .footer-nav h2 { margin-bottom: 17px; color: rgba(241,239,231,.5); font: 10px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: .16em; text-transform: uppercase; }
+  .footer-nav ul { display: grid; gap: 12px; padding: 0; list-style: none; }
+  .footer-nav a { color: #f1efe7; font: 14px/1.4 Georgia, "Times New Roman", serif; text-decoration: none; transition: color 160ms ease; }
+  .footer-nav a:hover { color: #b9c9ae; }
+  .footer-bottom { display: flex; align-items: center; justify-content: space-between; gap: 20px; border-top: 1px solid rgba(241,239,231,.18); padding-top: 18px; color: rgba(241,239,231,.5); font: 10px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: .05em; }
+  .footer-bottom p { margin: 0; }
+  .footer-top { color: #d8e0d1; text-decoration: none; white-space: nowrap; }
+  .footer-top:hover { color: #fff; }
+
+  @media (max-width: 700px) {
+    .topbar { min-height: 68px; padding-inline: 10px; gap: 6px; }
+    .brand { font-size: 16px; }
+    .mobile-menu-toggle { width: 42px; height: 42px; flex-basis: 42px; }
+    .mobile-nav-dialog { padding-right: 20px; padding-left: 20px; }
+    .content-page { padding: 116px 24px 64px; }
+    .page-title { font-size: 32px; line-height: 1.1; white-space: normal; }
+    .page-lede { font-size: 17px; }
+    .about-grid, .project-list { grid-template-columns: 1fr; gap: 30px; margin-top: 44px; }
+    .about-story { margin-top: 28px; padding: 12px 16px; }
+    .about-story-row { grid-template-columns: minmax(92px, .34fr) minmax(0, .66fr); gap: 16px; min-height: 0; padding: 20px 0; }
+    .about-story-image { aspect-ratio: .78; max-height: 190px; }
+    .about-story-copy h2 { font-size: 17px; }
+    .about-story-copy p { margin-top: 9px; font-size: 12px; line-height: 1.55; }
+    .about-story-cta { margin-top: 12px; padding: 8px 11px; font-size: 11px; }
+    .experience-item { grid-template-columns: 92px minmax(0, 1fr); gap: 16px; padding: 20px 0; }
+    .experience-logo-wrap { min-height: 92px; padding: 10px; }
+    .experience-logo { max-height: 64px; }
+    .experience-item h2 { font-size: 22px; }
+    .experience-role { font-size: 13px; }
+    .experience-company, .experience-description { font-size: 12px; }
+    .projects-heading { margin-top: 38px; }
+    .projects-page { padding-bottom: 62px; }
+    .projects-hero { min-height: 0; padding: 112px 24px 42px; }
+    .projects-hero-inner { grid-template-columns: 1fr; gap: 24px; }
+    .projects-hero h1 { margin-top: 16px; font-size: 46px; }
+    .projects-hero-copy > p:last-child { margin-top: 14px; font-size: 15px; }
+    .projects-hero-index { grid-template-columns: auto 1fr; align-items: center; gap: 4px 14px; min-width: 0; padding: 16px 0 0; border-top: 1px solid rgba(243,240,232,.3); border-left: 0; }
+    .projects-hero-index strong { grid-row: span 2; font-size: 42px; }
+    .projects-content { padding: 40px 24px 0; }
+    .project-list { gap: 14px; margin-top: 28px; }
+    .project-item { min-height: 0; padding: 24px 20px; }
+    .project-item h2 { margin-top: 21px; font-size: 29px; }
+    .project-item p { font-size: 13px; }
+    .project-item .project-tags { padding-top: 17px; }
+    .education-hero { min-height: 0; padding: 112px 24px 44px; }
+    .education-hero-inner { grid-template-columns: 1fr; gap: 30px; }
+    .education-hero h1 { margin-top: 17px; font-size: 46px; }
+    .education-hero-copy > p:last-child { margin-top: 17px; font-size: 16px; }
+    .education-current { grid-template-columns: 76px 1fr; align-items: center; gap: 3px 16px; padding: 17px 0 0; border-top: 1px solid rgba(243,240,232,.3); border-left: 0; }
+    .education-current img { grid-row: span 2; width: 72px; height: 62px; }
+    .education-current strong { font-size: 17px; }
+    .education-records { width: calc(100% - 40px); padding: 47px 0 68px; }
+    .education-records-heading { align-items: flex-start; flex-direction: column; gap: 7px; }
+    .education-records-heading h2 { font-size: 32px; }
+    .education-item { grid-template-columns: 60px minmax(0, 1fr) auto; gap: 12px; min-height: 126px; padding: 19px 0; }
+    .education-year { grid-column: 2 / -1; grid-row: 1; }
+    .education-mark { grid-column: 1; grid-row: 1 / span 2; width: 56px; height: 56px; }
+    .education-item > div { grid-column: 2 / -1; grid-row: 2; }
+    .education-item h3 { font-size: 21px; }
+    .education-item p { margin-top: 6px; font-size: 12px; }
+    .education-score { grid-column: 2 / -1; grid-row: 3; }
+    .project-item { min-height: 240px; }
+    .contact-page { min-height: 100svh; align-items: flex-start; padding: 105px 20px 48px; }
+    .contact-inner { grid-template-columns: 1fr; gap: 27px; }
+    .contact-title { max-width: 12ch; font-size: clamp(42px, 11vw, 62px); }
+    .contact-copy .page-lede { margin-top: 16px; }
+    .contact-email { margin-top: 17px; }
+    .contact-form { padding: 23px 19px; }
+    .contact-fields { gap: 14px; margin-top: 20px; }
+    .contact-options { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .spread-section { height: 340svh; }
+    .spread-sticky { min-height: 480px; }
+    .spread-copy { inset: 7% 12px auto; }
+    .spread-copy p { font-size: 9px; }
+    .spread-copy h2 { font-size: clamp(34px, 9vw, 54px); }
+    .spread-intro { width: calc(100% - 40px); }
+    .spread-intro h3 { font-size: 34px; white-space: normal; }
+    .spread-intro p { margin-top: 12px; font-size: 14px; }
+    .spread-card--top { width: 25vw; height: 16vh; }
+    .spread-card--side { width: 20vw; height: 13vh; }
+    .spread-card--bottom { width: 14vw; height: 11vh; }
+    .spread-count { right: 16px; bottom: 16px; }
+    .feedback-section { height: 220svh; }
+    .feedback-sticky { min-height: 620px; padding: 28px 22px; }
+    .feedback-layout { grid-template-columns: 1fr; gap: 12px; }
+    .feedback-heading { margin-bottom: 0; text-align: center; }
+    .feedback-heading h2 { font-size: 19px; white-space: normal; }
+    .feedback-portraits { height: min(39vh, 330px); min-height: 250px; }
+    .feedback-portrait { width: 42vw; height: min(33vh, 280px); }
+    .feedback-portrait[data-position="previous"] { transform: translate(calc(-50% - 66%), -48%) rotate(-7deg) scale(.72); }
+    .feedback-portrait[data-position="next"] { transform: translate(calc(-50% + 66%), -48%) rotate(7deg) scale(.72); }
+    .feedback-copy { min-height: 0; text-align: center; }
+    .feedback-copy h3 { font-size: clamp(29px, 7vw, 40px); }
+    .feedback-note { margin: 16px auto 0; font-size: 15px; }
+    .feedback-controls { justify-content: center; margin-top: 22px; }
+    .site-footer { padding: 24px 18px 18px; }
+    .footer-collab { grid-template-columns: 1fr; gap: 24px; min-height: 0; margin-bottom: 44px; padding: 26px 22px; }
+    .footer-collab-copy { min-height: 0; }
+    .footer-collab-copy h2 { font-size: 20px; white-space: normal; }
+    .footer-collab-copy > p { margin-top: 16px; font-size: 17px; }
+    .footer-socials { gap: 8px; margin-top: 18px; }
+    .footer-social { width: 50px; height: 50px; }
+    .footer-social svg { width: 23px; height: 23px; }
+    .footer-collab-image { height: min(105vw, 430px); min-height: 300px; }
+    .footer-main { grid-template-columns: 1fr 1fr; gap: 34px 24px; padding-bottom: 36px; }
+    .footer-main > div:first-child { grid-column: 1 / -1; }
+    .footer-intro { margin-top: 14px; font-size: 15px; }
+    .footer-bottom { align-items: flex-start; flex-direction: column; gap: 12px; }
+  }
+
+  @media (max-width: 400px) {
+    .contact-fields { grid-template-columns: 1fr; }
+    .contact-field--wide { grid-column: auto; }
+    .projects-hero h1 { font-size: 42px; }
+    .project-item h2 { font-size: 26px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .bg img { animation: none; transform: scale(1.28); }
+    .bg-fade, .card, .card .dim, .rail-fill { transition-duration: 0.01s; }
+    .headline h2.swap .line > span, .credit, .facts.swap span { animation-duration: 0.01s; animation-delay: 0s; }
+    .spread-copy, .spread-card { will-change: auto; }
+    .contact-page::before { animation: none; transform: none; }
+    .contact-bubble { display: none; }
+    .contact-submit, .contact-submit span { transition-duration: 0.01s; }
+    .projects-page.motion-ready .project-reveal { opacity: 1; transform: none; transition: none; }
+    .project-item { transition: none; }
+  }
+
+  @media (max-width: 900px) {
+    .top-nav { display: none; }
+    .mobile-menu-toggle { display: grid; }
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar" id="topbar">
+  <a class="brand" id="brand" href="#home">Abhinash Kurmi</a>
+  <nav class="top-nav" aria-label="Main navigation">
+    <a href="#home">Home</a>
+    <a href="#about">About</a>
+    <a href="#education">Education</a>
+    <a href="#projects">Projects</a>
+    <a href="#contact">Contact</a>
+  </nav>
+  <button class="mobile-menu-toggle" id="mobileMenuToggle" type="button" aria-label="Open navigation" aria-expanded="false" aria-controls="mobileMenuPanel">
+    <span class="mobile-menu-icon" aria-hidden="true"><span></span></span>
+  </button>
+</header>
+
+<div class="mobile-nav-backdrop" id="mobileNavBackdrop" hidden>
+  <div class="mobile-nav-dialog" role="dialog" aria-modal="true" aria-label="Mobile navigation">
+    <p class="mobile-nav-heading">Navigate</p>
+    <button class="mobile-menu-close" id="mobileMenuClose" type="button" aria-label="Close navigation">×</button>
+    <nav class="mobile-nav-links" id="mobileMenuPanel" aria-label="Mobile navigation links">
+      <a href="#home">Home</a>
+      <a href="#about">About</a>
+      <a href="#education">Education</a>
+      <a href="#projects">Projects</a>
+      <a href="#contact">Contact</a>
+    </nav>
+  </div>
+</div>
+
+<main class="page-view" id="homePage" data-page="home">
+<div class="stage" id="stage" tabindex="0" role="group" aria-roledescription="carousel" aria-label="Featured moments">
+  <!-- Background -->
+  <div class="bg bg-fade" id="bgA" style="opacity:1"></div>
+  <div class="bg bg-fade" id="bgB" style="opacity:0"></div>
+  <div class="wash"></div>
+  <div class="grain" aria-hidden="true"></div>
+
+  <!-- Headline -->
+  <div class="headline" id="headline">
+    <div class="headline-row" id="headlineRow">
+      <h2 id="title"></h2>
+      <p class="credit mono" id="credit"></p>
+    </div>
+  </div>
+
+  <!-- Strip -->
+  <div class="strip" id="strip">
+    <div class="track" id="track"></div>
+  </div>
+
+  <!-- Bottom: rail + caption fact-list -->
+  <div class="bottombar" id="bottombar">
+    <div class="rail">
+      <div class="rail-nums mono"><span id="posNow">01</span><span id="posTotal">09</span></div>
+      <div class="rail-track"><div class="rail-fill" id="railFill"></div></div>
+    </div>
+    <div class="facts mono" id="facts"></div>
+  </div>
+
+</div>
+
+<section class="spread-section" id="photo-story" aria-label="Photo story">
+  <div class="spread-sticky">
+    <div class="spread-copy" id="spreadCopy">
+      <p>ABHINASH PRASAD KURMI · PHOTO JOURNAL</p>
+      <h2>A life, <span>in frames.</span></h2>
+    </div>
+    <div class="spread-intro" id="spreadIntro">
+      <h3>Abinash Prasad Kurmi</h3>
+      <p>I'm Abinash: a curious mind, a builder at heart, and a computer science engineer turning bold ideas into thoughtful digital experiences. I believe every line of code can open a new possibility, and every new challenge is a chance to create something meaningful.</p>
+    </div>
+    <div class="spread-cards" id="spreadCards" role="list" aria-label="Moments from Abhinash's photo collection"></div>
+    <div class="spread-count" id="spreadCount" aria-hidden="true">01 / 15</div>
+    <div class="spread-progress" aria-hidden="true"><span id="spreadProgress"></span></div>
+  </div>
+</section>
+
+<section class="feedback-section" id="feedback" aria-label="People sharing feedback">
+  <div class="feedback-sticky">
+    <div class="feedback-layout">
+      <div class="feedback-visual">
+        <div class="feedback-heading">
+          <p>Voices from the journey</p>
+          <h2>Good people. Honest perspective.</h2>
+        </div>
+        <div class="feedback-portraits" id="feedbackPortraits" aria-label="Feedback contributors"></div>
+      </div>
+      <div class="feedback-copy" aria-live="polite" aria-atomic="true">
+        <p class="feedback-eyebrow">Feedback contributor</p>
+        <h3 id="feedbackName"></h3>
+        <p class="feedback-role" id="feedbackRole"></p>
+        <p class="feedback-note" id="feedbackNote"></p>
+        <div class="feedback-controls">
+          <button type="button" id="feedbackPrev" aria-label="Previous feedback contributor">&#8592;</button>
+          <span class="feedback-position" id="feedbackPosition">01 / 03</span>
+          <button type="button" id="feedbackNext" aria-label="Next feedback contributor">&#8594;</button>
+        </div>
+      </div>
+    </div>
+    <div class="feedback-progress" aria-hidden="true"><span id="feedbackProgress"></span></div>
+  </div>
+</section>
+
+</main>
+
+<main class="page-view content-page" id="aboutPage" data-page="about" hidden>
+  <div class="content-inner">
+    <p class="page-eyebrow">About · 01</p>
+    <div class="about-story">
+      <article class="about-story-row">
+        <img class="about-story-image" src="https://res.cloudinary.com/hdul8yua/image/upload/f_auto,q_auto:good,w_720,h_880,c_fill,g_auto/v1790754934/20230928_144116.heic" alt="Abinash outdoors among the trees" loading="lazy" fetchpriority="low" decoding="async" width="720" height="880">
+        <div class="about-story-copy">
+          <h2>Curious About How Things Work</h2>
+          <p>I’m Abhinash Prasad Kurmi, a Computer Science and Engineering student at KIIT. I’ve always been interested in the ideas and systems behind the technology we use, and I enjoy learning how to make them useful in the real world.</p>
+          <p>That curiosity keeps me exploring software development, Android, and emerging technologies.</p>
+        </div>
+      </article>
+      <article class="about-story-row is-reversed">
+        <img class="about-story-image" src="https://res.cloudinary.com/hdul8yua/image/upload/f_auto,q_auto:good,w_720,h_880,c_fill,g_auto/v1790754933/20251122_020330_1_1.jpg" alt="Abinash in a quiet outdoor moment" loading="lazy" fetchpriority="low" decoding="async" width="720" height="880">
+        <div class="about-story-copy">
+          <h2>Still Figuring It Out, And I Like That</h2>
+          <p>I don’t expect to have every answer straight away. I like learning by trying, asking questions, and improving one step at a time.</p>
+          <p>Each new challenge gives me a chance to grow my skills, rethink an approach, and come back with a clearer idea.</p>
+        </div>
+      </article>
+      <article class="about-story-row">
+        <img class="about-story-image" src="https://res.cloudinary.com/hdul8yua/image/upload/f_auto,q_auto:good,w_720,h_880,c_fill,g_auto/v1790754935/IMG_20250122_145745538.jpg" alt="Abinash by the sea" loading="lazy" fetchpriority="low" decoding="async" width="720" height="880">
+        <div class="about-story-copy">
+          <h2>Building Things That Actually Get Used</h2>
+          <p>I’m drawn to projects that turn an idea into something practical. I enjoy working through the details, learning the tools, and shaping a result that feels clear and useful.</p>
+          <p>My current interests include software, Android development, and data-focused experiments.</p>
+          <a class="about-story-cta" href="#projects">Explore my projects</a>
+        </div>
+      </article>
+      <article class="about-story-row is-reversed">
+        <img class="about-story-image" src="https://res.cloudinary.com/hdul8yua/image/upload/f_auto,q_auto:good,w_720,h_880,c_fill,g_auto/v1790756445/1776338897523.jpg" alt="Abinash spending time with friends" loading="lazy" fetchpriority="low" decoding="async" width="720" height="880">
+        <div class="about-story-copy">
+          <h2>Learning Alongside Others</h2>
+          <p>Good ideas grow through conversation. I value listening, sharing what I learn, and working with people who bring different perspectives to a problem.</p>
+          <p>Whether I’m studying or building, I try to bring curiosity, patience, and a team-first mindset.</p>
+        </div>
+      </article>
+    </div>
+  </div>
+</main>
+
+<main class="page-view education-page" id="educationPage" data-page="education" hidden>
+  <section class="education-hero" aria-labelledby="educationTitle">
+    <div class="education-hero-inner">
+      <div class="education-hero-copy">
+        <p class="education-eyebrow">Education · 02 / Academic journey</p>
+        <h1 id="educationTitle">A foundation for what comes next.</h1>
+        <p>From school in Birgunj to computer science at KIIT, each chapter has added a new way to think, learn, and build.</p>
+      </div>
+      <div class="education-current">
+        <img src="images/kiit-logo.png" alt="KIIT logo" loading="lazy" decoding="async" fetchpriority="low" width="195" height="148">
+        <span>Current chapter · 2022—2026</span>
+        <strong>B.Tech, Computer Science &amp; Engineering</strong>
+      </div>
+    </div>
+  </section>
+  <section class="education-records" aria-labelledby="educationRecordsTitle">
+    <div class="education-records-heading">
+      <div>
+        <p class="education-eyebrow">The academic record</p>
+        <h2 id="educationRecordsTitle">Four chapters. One direction.</h2>
+      </div>
+      <span>01 — 04 / LEARNING, IN PROGRESS</span>
+    </div>
+    <div class="education-list">
+      <article class="education-item">
+        <span class="education-year">2022 — 2026</span>
+        <div class="education-mark"><img src="images/kiit-logo.png" alt="KIIT logo" loading="lazy" decoding="async" fetchpriority="low" width="195" height="148"></div>
+        <div><h3>Bachelor of Technology</h3><p>Computer Science &amp; Engineering · Kalinga Institute of Industrial Technology, Bhubaneswar</p></div>
+        <span class="education-score">CGPA 7.7 / 10</span>
+      </article>
+      <article class="education-item">
+        <span class="education-year">Higher secondary</span>
+        <div class="education-mark"><img src="images/ni-logo.jpg" alt="National Infotech logo" loading="lazy" decoding="async" fetchpriority="low" width="260" height="203"></div>
+        <div><h3>NI College</h3><p>+2 / Higher Secondary Education</p></div>
+        <span class="education-score">3.59 / 4.00</span>
+      </article>
+      <article class="education-item">
+        <span class="education-year">Grades 8 — 10</span>
+        <div class="education-mark education-mark--photo"><img src="images/nursing-school-logo.jpg" alt="Nursing school building and grounds" loading="lazy" decoding="async" fetchpriority="low" width="260" height="203"></div>
+        <div><h3>Shree Nrisingh Higher Secondary School</h3><p>Birgunj, Parsa, Nepal</p></div>
+        <span class="education-score">3.4 / 4.00</span>
+      </article>
+      <article class="education-item">
+        <span class="education-year">Earlier schooling</span>
+        <div class="education-mark"><img src="images/golden-future-logo.jpg" alt="Golden Future Secondary School logo" loading="lazy" decoding="async" fetchpriority="low" width="447" height="447"></div>
+        <div><h3>Golden Future</h3><p>Earlier schooling</p></div>
+        <span class="education-score">School foundation</span>
+      </article>
+    </div>
+  </section>
+</main>
+
+<main class="page-view projects-page" id="projectsPage" data-page="projects" hidden>
+  <section class="projects-hero" aria-labelledby="projectsTitle">
+    <div class="projects-hero-inner project-reveal">
+      <div class="projects-hero-copy">
+        <p class="page-eyebrow">Experience &amp; Projects · 03</p>
+        <h1 id="projectsTitle">Selected work.</h1>
+        <p>Experience, research, and projects shaped by real problems.</p>
+      </div>
+      <div class="projects-hero-index" aria-label="Two selected projects">
+        <strong>02</strong>
+        <span>Selected projects</span>
+      </div>
+    </div>
+  </section>
+  <div class="content-inner projects-content">
+
+    <section aria-labelledby="experienceHeading">
+      <div class="projects-heading project-reveal">
+        <h2 id="experienceHeading">Business &amp; Web Experience</h2>
+        <p>Roles where I connect technology, teamwork, and practical delivery.</p>
+      </div>
+      <div class="experience-list">
+        <article class="experience-item project-reveal">
+          <div class="experience-logo-wrap">
+            <img class="experience-logo" src="images/logoHimstack.png" alt="Himstack logo" loading="lazy" decoding="async" fetchpriority="low" width="1024" height="1024">
+          </div>
+          <div>
+            <p class="experience-label">Featured business · Entrepreneurship</p>
+            <h2>Himstack</h2>
+            <p class="experience-role">Co-Founder &amp; CFO</p>
+            <p class="experience-company">Himstack Pvt Ltd · himstack.com</p>
+            <p class="experience-description">As Co-Founder and CFO at Himstack Pvt Ltd, I work at the intersection of technology, entrepreneurship, business operations, and financial responsibility. The role gives me hands-on experience building a technology venture beyond writing code.</p>
+            <p class="experience-tags">Entrepreneurship · Business · Finance · Technology</p>
+            <a class="experience-link" href="https://himstack.com/" target="_blank" rel="noopener noreferrer">Visit Himstack ↗</a>
+          </div>
+        </article>
+        <article class="experience-item project-reveal">
+          <div class="experience-logo-wrap">
+            <img class="experience-logo" src="images/loadlift_logo.png" alt="Load Lift logo" loading="lazy" decoding="async" fetchpriority="low" width="1254" height="1254">
+          </div>
+          <div>
+            <p class="experience-label">Experience · Web Development</p>
+            <h2>Load Lift</h2>
+            <p class="experience-role">Web Development Intern</p>
+            <p class="experience-company">Load Lift Pvt Ltd · loadlift.com.np</p>
+            <p class="experience-description">As a Web Development Intern at Load Lift Pvt Ltd, I gained practical experience building for the web in a professional team and connecting what I learned in Computer Science with real-world projects.</p>
+            <p class="experience-tags">Web Development · Frontend · Internship · Digital</p>
+            <a class="experience-link" href="https://loadlift.com.np/" target="_blank" rel="noopener noreferrer">Visit Load Lift ↗</a>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section aria-labelledby="projectsHeading">
+      <div class="projects-heading project-reveal">
+        <h2 id="projectsHeading">Selected Projects</h2>
+        <p>Two data projects exploring ratings and location-based patterns.</p>
+      </div>
+    <div class="project-list">
+      <article class="project-item project-reveal">
+        <span class="project-number">01 / MACHINE LEARNING</span>
+        <h2>Predict Restaurant Ratings</h2>
+        <p>Explores restaurant features such as location, cuisine, cost, delivery options, and reviews to estimate ratings. The work includes data preparation, feature engineering, model training, and evaluation.</p>
+        <p class="project-tags">Random Forest · Logistic Regression · Python</p>
+      </article>
+      <article class="project-item project-reveal">
+        <span class="project-number">02 / GEOSPATIAL ANALYSIS</span>
+        <h2>Location-Based Restaurant Analysis</h2>
+        <p>Studies geographic restaurant patterns alongside ratings, cuisine, and price range to explore regional trends and customer preferences.</p>
+        <p class="project-tags">Geographic data · Visualization · Regional trends</p>
+      </article>
+    </div>
+    </section>
+  </div>
+</main>
+
+<main class="page-view contact-page" id="contactPage" data-page="contact" hidden>
+  <div class="contact-bubbles" id="contactBubbles" aria-hidden="true"></div>
+  <div class="contact-inner">
+    <div class="contact-copy">
+      <p class="page-eyebrow">Contact · 04</p>
+      <h1 class="contact-title">Let’s make something meaningful.</h1>
+      <p class="page-lede">Have an idea, project, or opportunity in mind? I’d be glad to hear from you.</p>
+      <a class="contact-email" href="mailto:abinashprasadkurmi826@gmail.com">abinashprasadkurmi826@gmail.com ↗</a>
+    </div>
+    <form class="contact-form" id="contactForm">
+      <h2>Let’s talk.</h2>
+      <p class="contact-form-intro">Share a little about what you have in mind.</p>
+      <div class="contact-fields">
+        <div class="contact-field">
+          <label for="contactName">Your name</label>
+          <input id="contactName" name="name" type="text" autocomplete="name" placeholder="Your name" required>
+        </div>
+        <div class="contact-field">
+          <label for="contactEmail">Email address</label>
+          <input id="contactEmail" name="email" type="email" autocomplete="email" placeholder="you@example.com" required>
+        </div>
+        <div class="contact-field contact-field--wide">
+          <label for="contactMessage">Tell me about your idea</label>
+          <textarea id="contactMessage" name="message" placeholder="A few details about your project or opportunity..." required></textarea>
+        </div>
+      </div>
+      <fieldset class="contact-projects">
+        <legend>I’m looking for...</legend>
+        <div class="contact-options">
+          <label class="contact-option"><input type="checkbox" name="projectType" value="Website">Website</label>
+          <label class="contact-option"><input type="checkbox" name="projectType" value="Mobile app">Mobile app</label>
+          <label class="contact-option"><input type="checkbox" name="projectType" value="Web app">Web app</label>
+          <label class="contact-option"><input type="checkbox" name="projectType" value="E-commerce">E-commerce</label>
+          <label class="contact-option"><input type="checkbox" name="projectType" value="Brand identity">Brand identity</label>
+          <label class="contact-option"><input type="checkbox" name="projectType" value="3D and animation">3D &amp; animation</label>
+          <label class="contact-option"><input type="checkbox" name="projectType" value="Social media marketing">Social media marketing</label>
+          <label class="contact-option"><input type="checkbox" name="projectType" value="Strategy and consulting">Strategy &amp; consulting</label>
+          <label class="contact-option"><input type="checkbox" name="projectType" value="Other">Other</label>
+        </div>
+      </fieldset>
+      <button class="contact-submit" type="submit">Send a message <span aria-hidden="true">↗</span></button>
+      <p class="contact-status" id="contactStatus" role="status" aria-live="polite"></p>
+    </form>
+  </div>
+</main>
+
+<footer class="site-footer" id="site-footer">
+  <section class="footer-collab" aria-labelledby="footerCollabTitle">
+    <div class="footer-collab-copy">
+      <h2 id="footerCollabTitle">Let's create something meaningful.</h2>
+      <p>Have a project, an idea, or a chance to build something useful together? I’d love to hear about it. I’m a computer science engineer who enjoys turning thoughtful ideas into practical digital experiences. Let’s talk about what you’re imagining and explore how we can bring it to life together.</p>
+      <div class="footer-socials" aria-label="Contact and social profiles">
+        <a class="footer-social" href="mailto:abinashprasadkurmi826@gmail.com" aria-label="Email Abinash" title="Email">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5.5A2.5 2.5 0 0 1 5.5 3h13A2.5 2.5 0 0 1 21 5.5v13a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 18.5zm1.8.13 6.58 5.17a1 1 0 0 0 1.24 0l6.58-5.17a.7.7 0 0 0-.7-.43h-13a.7.7 0 0 0-.7.43Zm14.4 1.9-5.47 4.3a2.8 2.8 0 0 1-3.46 0L4.8 7.53v10.97c0 .39.31.7.7.7h13a.7.7 0 0 0 .7-.7z"/></svg>
+        </a>
+        <a class="footer-social" href="https://wa.me/9779824210650" target="_blank" rel="noopener noreferrer" aria-label="Message Abinash on WhatsApp" title="WhatsApp">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.04 2a9.86 9.86 0 0 0-8.48 14.9L2.2 22l5.22-1.37A9.98 9.98 0 0 0 12.04 22 10 10 0 0 0 22 12 9.98 9.98 0 0 0 12.04 2Zm0 18.17c-1.43 0-2.84-.38-4.07-1.1l-.3-.17-3.1.81.83-3.02-.2-.31a8.13 8.13 0 1 1 6.84 3.79Zm4.46-6.08c-.24-.12-1.42-.7-1.64-.78-.22-.08-.38-.12-.54.12-.16.24-.62.78-.76.94-.14.16-.28.18-.52.06-.24-.12-1.01-.37-1.92-1.18-.71-.63-1.19-1.41-1.33-1.65-.14-.24-.02-.37.1-.49.11-.11.24-.28.36-.42.12-.14.16-.24.24-.4.08-.16.04-.3-.02-.42-.06-.12-.54-1.3-.74-1.78-.2-.47-.4-.4-.54-.41h-.46c-.16 0-.42.06-.64.3-.22.24-.84.82-.84 2s.86 2.32.98 2.48c.12.16 1.69 2.58 4.1 3.62.57.25 1.01.4 1.36.51.57.18 1.09.16 1.5.1.46-.07 1.42-.58 1.62-1.14.2-.56.2-1.04.14-1.14-.06-.1-.22-.16-.46-.28Z"/></svg>
+        </a>
+        <a class="footer-social" href="https://www.linkedin.com/in/abinashkurmi/" target="_blank" rel="noopener noreferrer" aria-label="Abinash on LinkedIn" title="LinkedIn">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.45 20.45h-3.56v-5.57c0-1.33-.02-3.04-1.85-3.04-1.85 0-2.13 1.44-2.13 2.94v5.67H9.35V8.99h3.42v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.26 2.37 4.26 5.46zM5.34 7.43a2.06 2.06 0 1 1 0-4.12 2.06 2.06 0 0 1 0 4.12Zm1.78 13.02H3.56V8.99h3.56zM22.23 0H1.77C.79 0 0 .77 0 1.72v20.56C0 23.23.79 24 1.77 24h20.45c.98 0 1.78-.77 1.78-1.72V1.72C24 .77 23.21 0 22.23 0Z"/></svg>
+        </a>
+        <a class="footer-social" href="https://www.instagram.com/avinash_patel124/" target="_blank" rel="noopener noreferrer" aria-label="Abinash on Instagram" title="Instagram">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 2h10a5 5 0 0 1 5 5v10a5 5 0 0 1-5 5H7a5 5 0 0 1-5-5V7a5 5 0 0 1 5-5Zm0 2a3 3 0 0 0-3 3v10a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3V7a3 3 0 0 0-3-3zm5 3a5 5 0 1 1 0 10 5 5 0 0 1 0-10Zm0 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6Zm5.5-3a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3Z"/></svg>
+        </a>
+        <a class="footer-work" href="#photo-story">See my work</a>
+      </div>
+    </div>
+    <div class="footer-collab-image">
+      <img src="https://res.cloudinary.com/hdul8yua/image/upload/f_auto,q_auto:good,w_1100,c_limit/v1790754958/20260502_084659.jpg" alt="Abinash Prasad Kurmi" loading="lazy" decoding="async" fetchpriority="low" width="1100" height="1467">
+    </div>
+  </section>
+  <div class="footer-main">
+    <div>
+      <a class="footer-brand" href="#stage">ABINASH PRASAD KURMI</a>
+      <p class="footer-intro">Computer science engineer, curious builder, and believer in thoughtful technology. Based in Bhubaneswar, India.</p>
+      <a class="footer-contact" href="mailto:abinashprasadkurmi826@gmail.com">Start a conversation</a>
+    </div>
+    <nav class="footer-nav" aria-label="Explore">
+      <h2>Explore</h2>
+      <ul>
+        <li><a href="#home">Home</a></li>
+        <li><a href="#about">About</a></li>
+        <li><a href="#education">Education</a></li>
+        <li><a href="#projects">Projects</a></li>
+        <li><a href="#contact">Contact</a></li>
+      </ul>
+    </nav>
+    <nav class="footer-nav" aria-label="Connect">
+      <h2>Connect</h2>
+      <ul>
+        <li><a href="mailto:abinashprasadkurmi826@gmail.com">Email</a></li>
+        <li><a href="https://github.com/abinash07-patel" target="_blank" rel="noopener noreferrer">GitHub</a></li>
+        <li><a href="https://www.linkedin.com/in/abinashkurmi/" target="_blank" rel="noopener noreferrer">LinkedIn</a></li>
+        <li><a href="https://www.instagram.com/avinash_patel124/" target="_blank" rel="noopener noreferrer">Instagram</a></li>
+      </ul>
+    </nav>
+  </div>
+  <div class="footer-bottom">
+    <p>© <span id="footerYear">2026</span> Abinash Prasad Kurmi</p>
+  </div>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+  /* Each slide keeps its caption paired with its photo. */
+  var ITEMS = [
+    { image: "https://res.cloudinary.com/hdul8yua/image/upload/v1790754895/20260502_084659_3.jpg", title: "Sharp\nLook", credit: "SUITED UP.", meta: ["FORMAL", "PORTRAIT", "DAY"] },
+    { image: "https://res.cloudinary.com/hdul8yua/image/upload/v1790754889/20260502_140127_3.jpg", title: "Class of\n2026", credit: "KIIT GRADUATION DAY.", meta: ["KIIT", "B.TECH CSE", "2026"] },
+    { image: "https://res.cloudinary.com/hdul8yua/image/upload/v1790754887/IMG_20250122_145745538_3.jpg", title: "Sea\nGaze", credit: "BY THE SEA.", meta: ["SEA", "DAY", "WAVES"] },
+    { image: "https://res.cloudinary.com/hdul8yua/image/upload/v1790754887/IMG-20251003-WA0152_1.jpg", title: "Green\nCalm", credit: "HOME GREENS.", meta: ["OUTDOORS", "DAY", "GREEN"] },
+    { image: "https://res.cloudinary.com/hdul8yua/image/upload/v1790754886/IMG-20260519-WA0052_2.jpg", title: "Salt\nAir", credit: "SEA BREEZE.", meta: ["SEA", "DAY", "BEACH"] },
+    { image: "https://res.cloudinary.com/hdul8yua/image/upload/v1790754882/20260512_060143_3.jpg", title: "Proud\nGraduate", credit: "KIIT PRIDE.", meta: ["KIIT", "GRADUATION", "2026"] },
+    { image: "https://res.cloudinary.com/hdul8yua/image/upload/v1790754881/1777815758303_2.jpg", title: "Sky\nGaze", credit: "OPEN SKY.", meta: ["OUTDOORS", "DAY", "PORTRAIT"] },
+    { image: "https://res.cloudinary.com/hdul8yua/image/upload/v1790754876/20251122_024131_3.jpg", title: "Night\nTide", credit: "AFTER DARK.", meta: ["SEA", "NIGHT", "WAVES"] },
+    { image: "https://res.cloudinary.com/hdul8yua/image/upload/v1790754874/1756998606730_2.jpg", title: "Easy\nRide", credit: "MORNING SCOOT.", meta: ["CITY", "DAY", "RIDE"] }
+  ];
+  var N = 0;
+  var AUTOPLAY = true, AUTOPLAY_DELAY = 3500;
+  var WHEEL_THRESHOLD = 60, WHEEL_COOLDOWN = 420;
+
+  function cloudinaryImage(url, transforms) {
+    return url.replace("/upload/", "/upload/" + transforms + "/");
+  }
+
+  var stage = document.getElementById("stage");
+  var track = document.getElementById("track");
+  var titleEl = document.getElementById("title");
+  var creditEl = document.getElementById("credit");
+  var factsEl = document.getElementById("facts");
+  var posNow = document.getElementById("posNow");
+  var posTotal = document.getElementById("posTotal");
+  var railFill = document.getElementById("railFill");
+  var bgA = document.getElementById("bgA"), bgB = document.getElementById("bgB");
+  var showingA = true;
+  var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  var index = 0, dragging = false, paused = false, suppressClick = false;
+  var box = { w: 0, h: 0 }, geom = { fullH: 200, halfH: 100, cardW: 150, gap: 8, step: 158 };
+  var tx = 0, curX = 0, raf = 0, lastT = 0;
+
+  /* Cards */
+  var cards = [];
+  function buildCards() {
+    cards = ITEMS.map(function (item, i) {
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "card";
+    b.setAttribute("aria-label", item.title.replace(/\n/g, " "));
+    var img = document.createElement("img");
+    img.src = cloudinaryImage(item.image, "f_auto,q_auto:good,w_480,h_640,c_fill,g_auto");
+    img.alt = ""; img.draggable = false;
+    img.loading = i === 0 ? "eager" : "lazy"; img.decoding = "async"; img.fetchPriority = "low";
+    var dim = document.createElement("span");
+    dim.className = "dim"; dim.setAttribute("aria-hidden", "true");
+    b.appendChild(img); b.appendChild(dim);
+    b.addEventListener("click", function () { if (!suppressClick) go(i); });
+    track.appendChild(b);
+    return { btn: b, dim: dim };
+    });
+  }
+
+  /* Geometry: measured from the stage, never hard-coded */
+  function measure() {
+    box.w = stage.clientWidth; box.h = stage.clientHeight;
+    var fullH = Math.min(360, Math.max(96, box.h * 0.264));
+    var halfH = fullH / 2, cardW = fullH * 0.75;
+    var gap = Math.max(4, Math.round(cardW * 0.038));
+    var pad = Math.max(16, Math.round(box.w * 0.017));
+    var label = Math.max(9, Math.round(box.h * 0.0103));
+    stage.style.setProperty("--fullH", fullH + "px");
+    stage.style.setProperty("--halfH", halfH + "px");
+    stage.style.setProperty("--cardW", cardW + "px");
+    stage.style.setProperty("--gap", gap + "px");
+    stage.style.setProperty("--pad", pad + "px");
+    stage.style.setProperty("--label", label + "px");
+    stage.style.setProperty("--titleSize", Math.max(24, Math.round(box.h * 0.067)) + "px");
+    stage.style.setProperty("--railW", (box.w * 0.2) + "px");
+    document.getElementById("topbar").style.top = Math.max(16, box.h * 0.029) + "px";
+    document.getElementById("topbar").style.gap = Math.max(20, box.w * 0.06) + "px";
+    document.querySelectorAll(".topbar button").forEach(function (b) { b.style.fontSize = (label * 1.15) + "px"; });
+    document.getElementById("headline").style.paddingLeft = pad + "px";
+    document.getElementById("headline").style.paddingRight = pad + "px";
+    document.getElementById("headline").style.paddingBottom = Math.round(box.h * 0.028) + "px";
+    document.getElementById("bottombar").style.left = pad + "px";
+    document.getElementById("bottombar").style.right = pad + "px";
+    document.getElementById("bottombar").style.bottom = Math.max(14, box.h * 0.022) + "px";
+    factsEl.style.gap = Math.max(16, box.w * 0.055) + "px";
+    geom = { fullH: fullH, halfH: halfH, cardW: cardW, gap: gap, step: cardW + gap };
+    snap();
+  }
+  if (window.ResizeObserver) { new ResizeObserver(measure).observe(stage); }
+  window.addEventListener("resize", measure);
+
+  function xFor(i) { return box.w / 2 - (i * geom.step + geom.cardW / 2); }
+
+  /* Smooth track motion (spring-like) */
+  function tick(t) {
+    if (!lastT) lastT = t;
+    var dt = Math.min(0.05, (t - lastT) / 1000); lastT = t;
+    if (!dragging) {
+      var k = reduced ? 1 : 1 - Math.pow(0.0015, dt); /* ~stiffness 260 / damping 34 feel */
+      curX += (tx - curX) * k;
+      if (Math.abs(tx - curX) < 0.5) { curX = tx; }
+      else { raf = requestAnimationFrame(tick); }
+    }
+    track.style.transform = "translateX(" + curX + "px)";
+  }
+  function animateTrack() {
+    cancelAnimationFrame(raf); lastT = 0;
+    if (!reduced) raf = requestAnimationFrame(tick);
+    else { curX = tx; track.style.transform = "translateX(" + curX + "px)"; }
+  }
+  function snap() { tx = xFor(index); curX = tx; track.style.transform = "translateX(" + curX + "px)"; }
+
+  function paintBg(item) {
+    var showEl = showingA ? bgB : bgA, hideEl = showingA ? bgA : bgB;
+    showingA = !showingA;
+    showEl.innerHTML = "";
+    var img = document.createElement("img");
+    img.src = cloudinaryImage(item.image, "f_auto,q_auto:best,w_2048");
+    img.alt = ""; img.setAttribute("aria-hidden", "true"); img.draggable = false;
+    img.loading = "eager"; img.decoding = "async"; img.fetchPriority = "high";
+    showEl.appendChild(img); /* original photo only — no colour grading */
+    /* restart the slow zoom */
+    var fresh = img.cloneNode(); img.replaceWith(fresh);
+    showEl.style.opacity = "1"; hideEl.style.opacity = "0";
+  }
+
+  function preloadNextBackground() {
+    if (N < 2) return;
+    var img = new Image();
+    img.fetchPriority = "low";
+    img.src = cloudinaryImage(ITEMS[(index + 1) % N].image, "f_auto,q_auto:best,w_2048");
+  }
+
+  function renderText(item) {
+    titleEl.innerHTML = "";
+    item.title.split("\n").forEach(function (line) {
+      var l = document.createElement("span"); l.className = "line";
+      var s = document.createElement("span"); s.textContent = line;
+      l.appendChild(s); titleEl.appendChild(l);
+    });
+    titleEl.classList.remove("swap"); void titleEl.offsetWidth; titleEl.classList.add("swap");
+    creditEl.style.animation = "none"; void creditEl.offsetWidth; creditEl.style.animation = "";
+    creditEl.textContent = item.credit || "";
+    factsEl.innerHTML = "";
+    (item.meta || []).forEach(function (fact, i) {
+      var s = document.createElement("span");
+      s.textContent = fact; s.style.animationDelay = (0.12 + i * 0.06) + "s";
+      factsEl.appendChild(s);
+    });
+    factsEl.classList.remove("swap"); void factsEl.offsetWidth; factsEl.classList.add("swap");
+    var p = String(index + 1).padStart(2, "0");
+    posNow.textContent = p;
+    posTotal.textContent = String(N).padStart(2, "0");
+    railFill.style.width = (100 / N) + "%";
+    railFill.style.left = ((index / N) * 100) + "%";
+  }
+
+  function renderCards() {
+    cards.forEach(function (c, i) {
+      c.btn.style.height = (i === index ? geom.fullH : geom.halfH) + "px";
+      c.dim.style.opacity = (i === index ? 0 : 0.12);
+      if (i === index) c.btn.setAttribute("aria-current", "true");
+      else c.btn.removeAttribute("aria-current");
+    });
+  }
+
+  function go(next) {
+    next = Math.min(N - 1, Math.max(0, next));
+    if (next === index) { tx = xFor(index); animateTrack(); return; }
+    index = next;
+    tx = xFor(index); animateTrack();
+    paintBg(ITEMS[index]); renderText(ITEMS[index]); renderCards();
+    preloadNextBackground();
+    restartAutoplay();
+  }
+
+  /* Drag */
+  var startX = 0, baseX = 0, moved = 0, pid = 0;
+  track.addEventListener("pointerdown", function (e) {
+    dragging = true; moved = 0; pid = e.pointerId;
+    startX = e.clientX; baseX = tx;
+    track.classList.add("dragging");
+    try { track.setPointerCapture(pid); } catch (err) {}
+    cancelAnimationFrame(raf);
+    stopAutoplay();
+  });
+  track.addEventListener("pointermove", function (e) {
+    if (!dragging || e.pointerId !== pid) return;
+    moved = e.clientX - startX;
+    if (Math.abs(moved) > 6) suppressClick = true;
+    var minX = xFor(N - 1), maxX = xFor(0), nx = baseX + moved;
+    if (nx < minX - 80) nx = minX - 80; if (nx > maxX + 80) nx = maxX + 80;
+    curX = nx; track.style.transform = "translateX(" + curX + "px)";
+  });
+  function endDrag(e, velocityX) {
+    if (!dragging) return; dragging = false;
+    track.classList.remove("dragging");
+    var thrown = curX + (velocityX || 0) * 0.12;
+    setTimeout(function () { suppressClick = false; }, 0);
+    go(Math.round((box.w / 2 - thrown - geom.cardW / 2) / geom.step));
+  }
+  var lastMoveX = 0, lastMoveT = 0, velX = 0;
+  track.addEventListener("pointermove", function (e) {
+    if (!dragging) return;
+    var now = performance.now();
+    if (lastMoveT) velX = (e.clientX - lastMoveX) / ((now - lastMoveT) / 1000);
+    lastMoveX = e.clientX; lastMoveT = now;
+  });
+  track.addEventListener("pointerup", function (e) { if (e.pointerId === pid) endDrag(e, velX); velX = 0; lastMoveT = 0; });
+  track.addEventListener("pointercancel", function () { endDrag(null, 0); });
+
+  /* Horizontal wheel gestures navigate photos; vertical wheel scrolls the page. */
+  var acc = 0, until = 0;
+  stage.addEventListener("wheel", function (e) {
+    if (Math.abs(e.deltaX) <= Math.abs(e.deltaY)) return;
+    var delta = e.deltaX;
+    e.preventDefault();
+    var now = e.timeStamp;
+    if (now < until) return;
+    acc += delta;
+    if (Math.abs(acc) < WHEEL_THRESHOLD) return;
+    go(index + (acc > 0 ? 1 : -1)); acc = 0; until = now + WHEEL_COOLDOWN;
+  }, { passive: false });
+
+  /* Keys */
+  stage.addEventListener("keydown", function (e) {
+    var map = { ArrowLeft: index - 1, ArrowRight: index + 1, Home: 0, End: N - 1 };
+    if (!(e.key in map)) return;
+    e.preventDefault(); go(map[e.key]);
+  });
+
+  /* Autoplay (pauses on hover, drag, focus) */
+  var timer = 0;
+  function stopAutoplay() { if (timer) { clearTimeout(timer); timer = 0; } }
+  function restartAutoplay() {
+    stopAutoplay();
+    if (!AUTOPLAY || paused || dragging || N < 2 || reduced) return;
+    timer = setTimeout(function () { go(index === N - 1 ? 0 : index + 1); }, AUTOPLAY_DELAY);
+  }
+  stage.addEventListener("pointerenter", function () { paused = true; stopAutoplay(); });
+  stage.addEventListener("pointerleave", function () { paused = false; restartAutoplay(); });
+  stage.addEventListener("focus", function () { paused = true; stopAutoplay(); });
+  stage.addEventListener("blur", function () { paused = false; restartAutoplay(); });
+
+  /* Init with the first supplied photo as the initial hero slide. */
+  function boot() {
+    N = ITEMS.length;
+    index = 0;
+    buildCards();
+    posTotal.textContent = String(N).padStart(2, "0");
+    measure();
+    paintBg(ITEMS[index]); renderText(ITEMS[index]); renderCards(); snap();
+    preloadNextBackground();
+    restartAutoplay();
+  }
+  boot();
+})();
+</script>
+<script>
+(function () {
+  "use strict";
+  var photos = [
+    ["v1790756446/1777240314871.jpg", "Photo from Abhinash's collection"],
+    ["v1790756437/1771859985227.jpg", "Photo from Abhinash's collection"],
+    ["v1790756437/1772702565124.jpg", "Photo from Abhinash's collection"],
+    ["v1790754934/20230928_144116.heic", "Photo from Abhinash's collection"],
+    ["v1790754934/1777815961287.jpg", "Photo from Abhinash's collection"],
+    ["v1790754938/IMG-20251121-WA0037.jpg", "Photo from Abhinash's collection"],
+    ["v1790754935/IMG_20250122_145745538.jpg", "Photo from Abhinash's collection"],
+    ["v1790754936/IMG-20251003-WA0153_1.jpg", "Photo from Abhinash's collection"]
+  ];
+  var base = "https://res.cloudinary.com/hdul8yua/image/upload/";
+  var section = document.getElementById("photo-story");
+  var cardsRoot = document.getElementById("spreadCards");
+  var copy = document.getElementById("spreadCopy");
+  var intro = document.getElementById("spreadIntro");
+  var count = document.getElementById("spreadCount");
+  var progressBar = document.getElementById("spreadProgress");
+  var cards = [];
+  var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var frame = 0;
+
+  photos.forEach(function (photo, i) {
+    var card = document.createElement("div");
+    card.className = "spread-card" + (i < 3 ? " spread-card--top" : i < 5 ? " spread-card--side" : " spread-card--bottom");
+    card.setAttribute("role", "listitem");
+    var image = document.createElement("img");
+    image.alt = photo[1] + " " + (i + 1);
+    image.loading = "lazy";
+    image.decoding = "async";
+    image.fetchPriority = "low";
+    image.draggable = false;
+    image.src = base + "f_auto,q_auto:good,w_720,h_960,c_fill,g_auto/" + photo[0];
+    card.appendChild(image);
+    cardsRoot.appendChild(card);
+    cards.push(card);
+  });
+
+  function clamp(value, min, max) { return Math.max(min, Math.min(max, value)); }
+  function draw() {
+    frame = 0;
+    var vh = window.innerHeight;
+    var travel = Math.max(1, section.offsetHeight - vh);
+    var progress = reduced ? 1 : clamp(-section.getBoundingClientRect().top / travel, 0, 1);
+    var mobile = window.innerWidth <= 700;
+    cards.forEach(function (card, i) {
+      var x, y;
+      if (i < 3) {
+        x = (i - 1) * (mobile ? 32 : 32);
+        y = mobile ? -29 : -29;
+      } else if (i < 5) {
+        var sideIndex = i - 3;
+        x = sideIndex === 0 ? (mobile ? -39 : -42) : (mobile ? 39 : 42);
+        y = mobile ? 2 : 1;
+      } else {
+        var bottomIndex = i - 5;
+        var bottomPositions = mobile ? [-24, 0, 24] : [-24, 0, 24];
+        x = bottomPositions[bottomIndex];
+        y = mobile ? 39 : 34;
+      }
+      var fanX = ((i % 5) - 2) * 1.7;
+      var fanY = ((i % 4) - 1.5) * 1.6;
+      var fanRotate = ((i % 7) - 3) * 5;
+      var restRotate = ((i % 5) - 2) * (mobile ? 1.3 : 1.8);
+      var eased = clamp((progress - 0.12) / 0.78, 0, 1);
+      var tx = fanX + (x - fanX) * eased;
+      var ty = fanY + (y - fanY) * eased;
+      var rotate = fanRotate + (restRotate - fanRotate) * eased;
+      var scale = 0.82 + 0.18 * eased;
+      card.style.transform = "translate(-50%, -50%) translate(" + tx + "vw, " + ty + "vh) rotate(" + rotate + "deg) scale(" + scale + ")";
+      card.style.zIndex = String(i + 1);
+    });
+
+    var copyOpacity = reduced ? 1 : clamp((progress - 0.08) / 0.18, 0, 1) * clamp((0.92 - progress) / 0.2, 0, 1);
+    copy.style.opacity = String(copyOpacity);
+    copy.style.transform = "translateY(" + ((1 - copyOpacity) * 18) + "px)";
+    var introOpacity = reduced ? 1 : clamp((progress - 0.3) / 0.35, 0, 1);
+    intro.style.opacity = String(introOpacity);
+    intro.style.transform = "translate(-50%, calc(-50% + " + ((1 - introOpacity) * 18) + "px)) scale(" + (0.85 + introOpacity * 0.15) + ")";
+    progressBar.style.width = (progress * 100) + "%";
+    count.textContent = String(Math.min(8, Math.floor(progress * 7) + 1)).padStart(2, "0") + " / 08";
+  }
+
+  function requestDraw() {
+    if (!frame) frame = window.requestAnimationFrame(draw);
+  }
+  window.addEventListener("scroll", requestDraw, { passive: true });
+  window.addEventListener("resize", requestDraw, { passive: true });
+  draw();
+})();
+</script>
+<script>
+(function () {
+  "use strict";
+  var people = [
+    {
+      name: "Shiv Shankar Yadav",
+      role: "MSc in London",
+      quote: "Abinash is curious, thoughtful, and always ready to turn what he learns into something meaningful.",
+      image: "https://res.cloudinary.com/hdul8yua/image/upload/f_auto,q_auto:good,w_900,h_1100,c_fill,g_face/v1790759299/1000118914.jpg"
+    },
+    {
+      name: "Firoj Musalman",
+      role: "M.Tech, NIT Warangal · Former Senior Engineer, HighRadius",
+      quote: "His drive to keep learning and his persistence in solving problems make Abinash one to watch.",
+      image: "https://res.cloudinary.com/hdul8yua/image/upload/f_auto,q_auto:good,w_900,h_1100,c_fill,g_face/v1790759299/1000118912.jpg"
+    },
+    {
+      name: "Sushant Yadav",
+      role: "KIIT Nepali Cricket Team Captain · M.Tech in CSE",
+      quote: "Abinash brings positive energy, a team-first attitude, and real dedication to everything he takes on.",
+      image: "https://res.cloudinary.com/hdul8yua/image/upload/f_auto,q_auto:good,w_900,h_1100,c_fill,g_face/v1790759299/1000118913.jpg"
+    }
+  ];
+  var section = document.getElementById("feedback");
+  var portraitRoot = document.getElementById("feedbackPortraits");
+  var name = document.getElementById("feedbackName");
+  var role = document.getElementById("feedbackRole");
+  var quote = document.getElementById("feedbackNote");
+  var position = document.getElementById("feedbackPosition");
+  var progressBar = document.getElementById("feedbackProgress");
+  var portraits = [];
+  var activeIndex = 0;
+  var frame = 0;
+  var manualUntil = 0;
+
+  people.forEach(function (person, index) {
+    var frameEl = document.createElement("div");
+    frameEl.className = "feedback-portrait";
+    frameEl.dataset.position = "hidden";
+    frameEl.setAttribute("role", "img");
+    frameEl.setAttribute("aria-label", person.name);
+    var image = document.createElement("img");
+    image.src = person.image;
+    image.alt = person.name;
+    image.loading = "lazy";
+    image.decoding = "async";
+    image.fetchPriority = "low";
+    image.draggable = false;
+    frameEl.appendChild(image);
+    portraitRoot.appendChild(frameEl);
+    portraits.push(frameEl);
+  });
+
+  function render(index) {
+    activeIndex = (index + people.length) % people.length;
+    var previous = (activeIndex - 1 + people.length) % people.length;
+    var next = (activeIndex + 1) % people.length;
+    portraits.forEach(function (portrait, i) {
+      portrait.dataset.position = i === activeIndex ? "active" : i === previous ? "previous" : i === next ? "next" : "hidden";
+    });
+    name.textContent = people[activeIndex].name;
+    role.textContent = people[activeIndex].role;
+    quote.textContent = "“" + people[activeIndex].quote + "”";
+    position.textContent = String(activeIndex + 1).padStart(2, "0") + " / 03";
+  }
+
+  function updateFromScroll() {
+    frame = 0;
+    var travel = Math.max(1, section.offsetHeight - window.innerHeight);
+    var progress = Math.max(0, Math.min(1, -section.getBoundingClientRect().top / travel));
+    progressBar.style.width = (progress * 100) + "%";
+    if (Date.now() < manualUntil) return;
+    render(Math.min(people.length - 1, Math.floor(progress * people.length)));
+  }
+
+  function scheduleUpdate() {
+    if (!frame) frame = window.requestAnimationFrame(updateFromScroll);
+  }
+
+  document.getElementById("feedbackPrev").addEventListener("click", function () {
+    manualUntil = Date.now() + 1600;
+    render(activeIndex - 1);
+  });
+  document.getElementById("feedbackNext").addEventListener("click", function () {
+    manualUntil = Date.now() + 1600;
+    render(activeIndex + 1);
+  });
+  window.addEventListener("scroll", scheduleUpdate, { passive: true });
+  window.addEventListener("resize", scheduleUpdate, { passive: true });
+  render(0);
+  updateFromScroll();
+})();
+</script>
+<script>
+document.getElementById("footerYear").textContent = String(new Date().getFullYear());
+</script>
+<script>
+(function () {
+  "use strict";
+  var bubbleRoot = document.getElementById("contactBubbles");
+  var bubbleCount = 15;
+
+  for (var index = 0; index < bubbleCount; index += 1) {
+    var bubble = document.createElement("span");
+    var size = Math.round(Math.random() * 20 + 10);
+    bubble.className = "contact-bubble";
+    bubble.style.left = Math.round(Math.random() * 100) + "%";
+    bubble.style.width = size + "px";
+    bubble.style.height = size + "px";
+    bubble.style.setProperty("--bubble-delay", (-Math.random() * 20) + "s");
+    bubble.style.setProperty("--bubble-duration", (Math.random() * 20 + 10) + "s");
+    bubble.style.setProperty("--bubble-drift", (Math.random() > 0.5 ? 1 : -1) * Math.round(Math.random() * 10 + 2) + "vw");
+    bubbleRoot.appendChild(bubble);
+  }
+
+  document.getElementById("contactForm").addEventListener("submit", function (event) {
+    event.preventDefault();
+    var formData = new FormData(event.currentTarget);
+    var projectTypes = formData.getAll("projectType");
+    var name = String(formData.get("name")).trim();
+    var email = String(formData.get("email")).trim();
+    var message = String(formData.get("message")).trim();
+    var subject = "Website inquiry from " + name;
+    var body = [
+      "Name: " + name,
+      "Email: " + email,
+      "Project type(s): " + (projectTypes.length ? projectTypes.join(", ") : "Not specified"),
+      "",
+      "Project idea:",
+      message
+    ].join("\n");
+    var mailto = "mailto:abinashprasadkurmi826@gmail.com?subject=" + encodeURIComponent(subject) + "&body=" + encodeURIComponent(body);
+    document.getElementById("contactStatus").textContent = "Opening your email app with your message ready to send.";
+    window.location.href = mailto;
+  });
+})();
+</script>
+<script>
+(function () {
+  "use strict";
+  var pageNames = ["home", "about", "education", "projects", "contact"];
+  var pages = Array.prototype.slice.call(document.querySelectorAll("[data-page]"));
+  var topbar = document.getElementById("topbar");
+  var mobileMenuToggle = document.getElementById("mobileMenuToggle");
+  var mobileMenuClose = document.getElementById("mobileMenuClose");
+  var mobileNavBackdrop = document.getElementById("mobileNavBackdrop");
+  var mobileNavDialog = mobileNavBackdrop.querySelector(".mobile-nav-dialog");
+  var currentPage = "home";
+
+  function setMobileMenuOpen(open, restoreFocus) {
+    if (open) {
+      mobileNavBackdrop.hidden = false;
+      document.body.classList.add("mobile-nav-open");
+      mobileMenuToggle.setAttribute("aria-expanded", "true");
+      mobileMenuToggle.setAttribute("aria-label", "Close navigation");
+      window.requestAnimationFrame(function () { mobileNavBackdrop.classList.add("is-open"); });
+      mobileMenuClose.focus();
+      return;
+    }
+
+    var wasOpen = !mobileNavBackdrop.hidden;
+    mobileNavBackdrop.classList.remove("is-open");
+    document.body.classList.remove("mobile-nav-open");
+    mobileMenuToggle.setAttribute("aria-expanded", "false");
+    mobileMenuToggle.setAttribute("aria-label", "Open navigation");
+    window.setTimeout(function () {
+      if (!mobileNavBackdrop.classList.contains("is-open")) mobileNavBackdrop.hidden = true;
+    }, 330);
+    if (wasOpen && restoreFocus) mobileMenuToggle.focus();
+  }
+
+  mobileMenuToggle.addEventListener("click", function () {
+    setMobileMenuOpen(mobileMenuToggle.getAttribute("aria-expanded") !== "true", true);
+  });
+  mobileMenuClose.addEventListener("click", function () { setMobileMenuOpen(false, true); });
+  mobileNavBackdrop.addEventListener("click", function (event) {
+    if (event.target === mobileNavBackdrop) setMobileMenuOpen(false, true);
+  });
+  mobileNavBackdrop.querySelectorAll("a").forEach(function (link) {
+    link.addEventListener("click", function () { setMobileMenuOpen(false, true); });
+  });
+  document.addEventListener("keydown", function (event) {
+    if (mobileNavBackdrop.hidden) return;
+    if (event.key === "Escape") {
+      event.preventDefault();
+      setMobileMenuOpen(false, true);
+      return;
+    }
+    if (event.key !== "Tab") return;
+    var focusable = Array.prototype.slice.call(mobileNavDialog.querySelectorAll("button:not([disabled]), a[href]"));
+    var first = focusable[0], last = focusable[focusable.length - 1];
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault(); last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault(); first.focus();
+    }
+  });
+
+  function showPage() {
+    var requested = decodeURIComponent(window.location.hash.slice(1));
+    var page = pageNames.indexOf(requested) !== -1 ? requested : "home";
+    var anchor = requested && pageNames.indexOf(requested) === -1 ? document.getElementById(requested) : null;
+    currentPage = anchor ? "home" : page;
+    setMobileMenuOpen(false, false);
+    topbar.classList.toggle("topbar-dark", ["about", "education", "projects", "contact"].indexOf(currentPage) !== -1);
+
+    pages.forEach(function (view) {
+      view.hidden = view.dataset.page !== currentPage;
+    });
+
+    if (anchor) {
+      window.requestAnimationFrame(function () {
+        anchor.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    } else {
+      window.scrollTo(0, 0);
+    }
+
+    document.querySelectorAll(".top-nav a, .mobile-nav-links a").forEach(function (link) {
+      var active = link.getAttribute("href") === "#" + currentPage;
+      if (active) link.setAttribute("aria-current", "page");
+      else link.removeAttribute("aria-current");
+    });
+  }
+
+  window.addEventListener("hashchange", showPage);
+  showPage();
+})();
+</script>
+<script>
+(function () {
+  "use strict";
+  var projectsPage = document.getElementById("projectsPage");
+  var reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (!window.IntersectionObserver || reducedMotion) return;
+
+  var revealObserver = new IntersectionObserver(function (entries) {
+    entries.forEach(function (entry) {
+      if (!entry.isIntersecting) return;
+      entry.target.classList.add("is-visible");
+      revealObserver.unobserve(entry.target);
+    });
+  }, { threshold: 0.12, rootMargin: "0px 0px -32px 0px" });
+
+  projectsPage.classList.add("motion-ready");
+  projectsPage.querySelectorAll(".project-reveal").forEach(function (element) {
+    revealObserver.observe(element);
+  });
+})();
+</script>
+</body>
+</html>

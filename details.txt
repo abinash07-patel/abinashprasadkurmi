@@ -1,0 +1,231 @@
+ABHINASH PRASAD KURMI — COMPLETE PROFILE DETAILS
+====================================================
+
+PERSONAL INFORMATION
+--------------------
+Name: Abhinash Prasad Kurmi
+Professional Status: B.Tech Computer Science & Engineering Student
+Current/Recent Location: Bhubaneswar, Odisha, India
+Home/Schooling Location: Birgunj, Parsa, Nepal
+
+Contact Number: 9824210650
+
+Email Options:
+- abinashprasadkurmi826@gmail.com
+- iamabinashkurmi@gmail.com
+- abinash.kurmi01@gmail.com
+
+Preferred/Primary Email: abinashprasadkurmi826@gmail.com
+
+GitHub Username: abinash07-patel
+
+SOCIAL MEDIA
+------------
+Instagram:
+https://www.instagram.com/avinash_patel124/
+
+Instagram Username: @avinash_patel124
+
+LinkedIn:
+https://www.linkedin.com/in/abinashkurmi/
+
+LinkedIn Name: Abinash Kurmi
+
+GitHub:
+abinash07-patel
+
+EDUCATION
+---------
+
+1. BACHELOR'S DEGREE
+--------------------
+Institution: Kalinga Institute of Industrial Technology (KIIT), Bhubaneswar
+Degree: Bachelor of Technology (B.Tech)
+Branch: Computer Science & Engineering
+Duration: 2022–2026
+CGPA: 7.7 / 10
+
+Description:
+B.Tech CSE student with a strong foundation in computer science, software development,
+and emerging technologies. Interested in building practical technology solutions and
+continuously improving technical skills.
+
+2. +2 / HIGHER SECONDARY EDUCATION
+-----------------------------------
+Institution: NI College
+Level: +2 / Higher Secondary Education
+Score: 3.59 / 4.00
+
+Note:
+The exact full name and address of the +2 college should be confirmed before publishing
+on the website.
+
+3. SCHOOLING — GRADES 8 TO 10
+------------------------------
+School: Shree Nrisingh Higher Secondary School
+Location: Birgunj, Parsa, Nepal
+Grades: 8–10
+Score: 3.4 / 4.00
+
+4. EARLIER SCHOOLING
+--------------------
+School: Golden Future
+
+Note:
+Exact class/grade details and full school name/address were not provided and should be
+confirmed before publishing.
+
+ABOUT ABHINASH
+--------------
+B.Tech CSE student with a CGPA of 7.7, passionate about technology and eager to explore
+innovative solutions in software development and emerging technologies. A quick learner
+with a strong foundation in computer science and a drive to grow in the technology
+industry.
+
+TECHNICAL SKILLS
+----------------
+- Canva
+- Figma
+- Artificial Intelligence & Machine Learning
+- Android Development
+- Java
+- Kotlin
+- HTML
+- CSS
+- JavaScript
+
+PROJECTS
+--------
+
+1. PREDICT RESTAURANT RATINGS MODEL
+-----------------------------------
+A machine learning project focused on predicting restaurant ratings based on various
+features such as location, cuisine, cost, online delivery availability, and customer
+reviews.
+
+Key areas:
+- Restaurant rating prediction
+- Data preprocessing
+- Feature engineering
+- Machine learning model training
+- Model evaluation
+- Historical restaurant data analysis
+
+Algorithms/Methods:
+- Random Forest
+- Logistic Regression
+
+Project purpose:
+To identify patterns in restaurant data and predict ratings accurately, helping support
+data-driven decisions for customers and restaurant owners.
+
+2. LOCATION-BASED ANALYSIS MODEL
+--------------------------------
+A geographical analysis project focused on understanding the spatial distribution and
+characteristics of restaurants.
+
+Key areas:
+- Latitude and longitude analysis
+- Geographic data visualization
+- Spatial distribution analysis
+- Restaurant grouping by city/locality
+- Rating analysis
+- Cuisine analysis
+- Price-range analysis
+- Regional trend analysis
+- Customer preference analysis
+
+Project purpose:
+To extract meaningful geographical and customer insights that can support targeted
+marketing and location planning.
+
+HOBBIES & INTERESTS
+-------------------
+The provided information does not specify Abhinash's personal hobbies or leisure
+activities.
+
+Possible website categories to fill after confirmation:
+- Sports
+- Traveling
+- Photography
+- Gaming
+- Music
+- Reading
+- Coding / Programming
+- Technology exploration
+- Fitness
+- Design
+
+IMPORTANT: These are suggested categories only, NOT confirmed hobbies of Abhinash.
+
+THINGS HE LIKES TO DO
+---------------------
+Not specifically provided in the current information.
+
+Based on his profile, confirmed interests include:
+- Technology
+- Software development
+- Emerging technologies
+- Artificial Intelligence & Machine Learning
+- Android development
+- Learning new technical skills
+- Building practical projects
+
+Personal activities and hobbies should be confirmed with Abhinash before adding them
+as factual information on his website.
+
+CAREER INTERESTS
+----------------
+- Software Development
+- Artificial Intelligence & Machine Learning
+- Android Development
+- Computer Science
+- Emerging Technologies
+- Technology Innovation
+
+WEBSITE CONTENT STRUCTURE
+-------------------------
+Recommended sections for Abhinash's personal website:
+
+1. Home
+   - Name
+   - Short professional introduction
+   - Profile photo
+   - Social links
+
+2. About Me
+   - Personal introduction
+   - Academic background
+   - Career interests
+   - Goals
+
+3. Education
+   - B.Tech — KIIT
+   - +2 — NI College
+   - School — Shree Nrisingh Higher Secondary School
+   - Earlier schooling — Golden Future
+
+4. Skills
+   - AI & ML
+   - Java
+   - Kotlin
+   - Android Development
+   - HTML
+   - CSS
+   - JavaScript
+   - Canva
+   - Figma
+
+5. Projects
+   - Predict Restaurant Ratings Model
+   - Location-Based Analysis Model
+
+6. Social Links
+   - GitHub
+   - LinkedIn
+   - Instagram
+
+7. Contact
+   - Phone
+   - Email
+   - Location
